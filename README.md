@@ -38,7 +38,7 @@ Make sure you have [Node.js](https://nodejs.org/) and [Git](https://git-scm.com/
 
 ### 1. Clone the repository
 \`\`\`bash
-git clone https://github.com/yourusername/clubevents.git
+git clone https://github.com/Mindflayer09/Event-Management-Jims-
 cd clubevents
 \`\`\`
 
