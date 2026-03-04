@@ -7,6 +7,9 @@ import Card from '../../components/common/Card';
 import Modal from '../../components/common/Modal';
 import { formatDate } from '../../utils/helpers';
 
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 export default function PublicReports() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +30,7 @@ export default function PublicReports() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50">
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="text-xl font-bold text-indigo-600 flex items-center gap-2">
@@ -89,19 +92,27 @@ export default function PublicReports() {
         {selected && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">{selected.description}</p>
+            
+            {/* 🔥 NEW: Render Markdown with Tailwind Typography */}
             {selected.report && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-1">Report</h4>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{selected.report}</p>
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <h4 className="font-medium text-gray-900 mb-3">Post-Event Report</h4>
+                <div className="prose prose-sm sm:prose-base prose-indigo max-w-none text-gray-700 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {selected.report}
+                  </ReactMarkdown>
+                </div>
               </div>
             )}
+
             {selected.budget > 0 && (
-              <p className="text-sm text-gray-500">
-                <strong>Budget:</strong> Rs. {selected.budget}
+              <p className="text-sm text-gray-500 mt-4">
+                <strong>Budget Utilized:</strong> Rs. {selected.budget}
               </p>
             )}
+
             {selected.media?.length > 0 && (
-              <div>
+              <div className="mt-6">
                 <h4 className="font-medium text-gray-900 mb-2">Gallery</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {selected.media.map((m, i) => (
@@ -109,7 +120,7 @@ export default function PublicReports() {
                       key={i}
                       src={m.url}
                       alt={`Media ${i + 1}`}
-                      className="w-full h-32 object-cover rounded-lg"
+                      className="w-full h-32 object-cover rounded-lg shadow-sm"
                     />
                   ))}
                 </div>

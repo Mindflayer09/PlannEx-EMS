@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllEvents, createEvent, updateEvent, deleteEvent, changeEventPhase, finalizeEvent } from '../../api/services/event.service';
+import { getAllEvents, createEvent, updateEvent, deleteEvent, changeEventPhase, finalizeEvent, generateEventReport } from '../../api/services/event.service';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +10,8 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Spinner from '../../components/common/Spinner';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Edit, ArrowRight, Lock } from 'lucide-react';
+
+import { Plus, Trash2, Edit, ArrowRight, Lock, Sparkles, FileText } from 'lucide-react';
 import { PHASE_COLORS, PHASE_LABELS } from '../../utils/constants';
 import { formatDate } from '../../utils/helpers';
 
@@ -25,8 +26,16 @@ const PHASE_ORDER = ['pre-event', 'during-event', 'post-event'];
 export default function ManageEvents() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Standard Create/Edit Event State
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+
+  // 🔥 NEW AI Report State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [activeReportEvent, setActiveReportEvent] = useState(null);
+  const [reportText, setReportText] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(eventSchema),
@@ -58,6 +67,14 @@ export default function ManageEvents() {
     setShowModal(true);
   };
 
+  // 🔥 Open the AI Report Modal
+  const openReportModal = (event) => {
+    setActiveReportEvent(event);
+    // Load existing report or draft if it exists
+    setReportText(event.report || event.aiDraft || '');
+    setShowReportModal(true);
+  };
+
   const onSubmit = async (data) => {
     try {
       if (editing) {
@@ -71,6 +88,36 @@ export default function ManageEvents() {
       fetchEvents();
     } catch (err) {
       toast.error(err.message || 'Failed to save event');
+    }
+  };
+
+  // 🔥 Handle AI Generation
+  const handleGenerateAI = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await generateEventReport(activeReportEvent._id);
+      // Populate the textarea with the AI's response
+      setReportText(res.data.report || res.data.aiDraft);
+      toast.success('AI Draft generated successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to generate AI report');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // 🔥 Handle Saving the Report edits
+  const handleSaveReport = async () => {
+    try {
+      await updateEvent(activeReportEvent._id, { 
+        report: reportText, 
+        reportStatus: 'draft' 
+      });
+      toast.success('Report saved successfully');
+      setShowReportModal(false);
+      fetchEvents();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save report');
     }
   };
 
@@ -148,7 +195,15 @@ export default function ManageEvents() {
                         <ArrowRight className="h-3.5 w-3.5 mr-1" /> Next Phase
                       </Button>
                     )}
-                    {event.phase === 'post-event' && !event.isFinalized && (
+                    
+                    {/* 🔥 NEW: Report button only shows in post-event phase */}
+                    {event.phase === 'post-event' && (
+                      <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => openReportModal(event)}>
+                        <FileText className="h-3.5 w-3.5 mr-1" /> Report
+                      </Button>
+                    )}
+
+                    {event.phase === 'post-event' && (
                       <Button size="sm" variant="success" onClick={() => handleFinalize(event._id)}>
                         <Lock className="h-3.5 w-3.5 mr-1" /> Finalize
                       </Button>
@@ -164,7 +219,7 @@ export default function ManageEvents() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Basic Create/Edit Modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Event' : 'Create Event'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input label="Title" error={errors.title?.message} {...register('title')} />
@@ -184,6 +239,38 @@ export default function ManageEvents() {
           </div>
         </form>
       </Modal>
+
+      {/* 🔥 NEW: AI Report Modal */}
+      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Post-Event Report">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center bg-purple-50 p-3 rounded-lg border border-purple-100">
+            <p className="text-sm text-purple-800">
+              Generate a public report using event data and completed tasks.
+            </p>
+            <Button size="sm" onClick={handleGenerateAI} disabled={isGenerating} className="bg-purple-600 hover:bg-purple-700 text-white flex items-center whitespace-nowrap ml-4">
+              {isGenerating ? <Spinner size="sm" className="mr-2 border-white" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              {isGenerating ? 'Generating...' : 'Auto-Generate AI Draft'}
+            </Button>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Public Report Content (Markdown supported)</label>
+            <textarea
+              rows={12}
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
+              value={reportText}
+              onChange={(e) => setReportText(e.target.value)}
+              placeholder="Click 'Auto-Generate' above, or type your report here..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+            <Button variant="outline" onClick={() => setShowReportModal(false)}>Cancel</Button>
+            <Button onClick={handleSaveReport}>Save Draft</Button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }

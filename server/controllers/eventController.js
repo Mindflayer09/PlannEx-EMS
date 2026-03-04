@@ -2,6 +2,7 @@ const Event = require('../models/Event');
 const Task = require('../models/Task');
 const { PHASE_ORDER, EVENT_PHASES, TASK_PRIORITIES, TASK_STATUSES } = require('../utils/constants');
 const { notifyPhaseChanged, notifyEventFinalized } = require('../services/notificationService');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // GET /api/events
 exports.getAllEvents = async (req, res, next) => {
@@ -44,14 +45,15 @@ exports.getPublicEvents = async (req, res, next) => {
     const { page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const events = await Event.find({ isPublic: true })
+    // Only fetch events where the report is officially published
+    const events = await Event.find({ isPublic: true, reportStatus: 'published' })
       .populate('club', 'name logo')
       .select('title description club media report budget createdAt')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Event.countDocuments({ isPublic: true });
+    const total = await Event.countDocuments({ isPublic: true, reportStatus: 'published' });
 
     res.json({
       success: true,
@@ -126,10 +128,14 @@ exports.updateEvent = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Cannot edit a finalized event' });
     }
 
-    const { title, description, report, budget } = req.body;
+    // Added aiDraft and reportStatus to allow saving edits before publishing
+    const { title, description, report, budget, aiDraft, reportStatus } = req.body;
+    
     if (title) event.title = title;
     if (description) event.description = description;
     if (report !== undefined) event.report = report;
+    if (aiDraft !== undefined) event.aiDraft = aiDraft;
+    if (reportStatus !== undefined) event.reportStatus = reportStatus;
     if (budget !== undefined) event.budget = budget;
 
     await event.save();
@@ -234,6 +240,8 @@ exports.finalizeEvent = async (req, res, next) => {
 
     event.isFinalized = true;
     event.isPublic = true;
+    event.reportStatus = 'published'; // Publish the report automatically when finalizing
+    
     await event.save();
 
     notifyEventFinalized(event).catch(console.error);
@@ -264,5 +272,75 @@ exports.addMedia = async (req, res, next) => {
     res.json({ success: true, data: { event } });
   } catch (error) {
     next(error);
+  }
+};
+
+// POST /api/events/:id/generate-report (NEW AI ROUTE)
+exports.generateEventReport = async (req, res, next) => {
+  try {
+    const event = await Event.findById(req.params.id).populate('club', 'name');
+    
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    // 1. Fetch Approved Tasks for Context
+    const tasks = await Task.find({ 
+      event: event._id, 
+      status: TASK_STATUSES.APPROVED 
+    }).populate('assignedTo', 'name');
+
+    // Extract first names only to protect volunteer privacy
+    const taskSummaries = tasks.map(t => {
+      const volunteerName = t.assignedTo ? t.assignedTo.name.split(' ')[0] : 'A volunteer';
+      return `- ${t.title} (Completed by: ${volunteerName})`;
+    }).join('\n');
+
+    // 2. Construct the Prompt
+    const prompt = `
+      You are an expert Public Relations Officer for the club "${event.club.name}".
+      Your job is to write a professional, engaging, and polished post-event report for the general public.
+
+      Event Data:
+      - Title: ${event.title}
+      - Description: ${event.description}
+      - Budget Utilized: $${event.budget}
+      
+      Key Accomplishments (Tasks Completed):
+      ${taskSummaries || 'Routine event setup and execution.'}
+
+      Rules:
+      1. Use a formal, celebratory, and community-focused tone.
+      2. NEVER invent or hallucinate metrics, numbers, names, or events. Only use the provided data.
+      3. DO NOT include sensitive information or internal club disputes.
+      4. Format the output in clean Markdown with headings (##), bullet points, and short paragraphs.
+      5. End with a concluding sentence thanking the community.
+    `;
+
+    // 3. Initialize Gemini
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+
+    const result = await model.generateContent(prompt);
+    const generatedDraft = result.response.text();
+
+    // 4. Save to Database
+    event.aiDraft = generatedDraft;
+    event.reportStatus = 'draft';
+    
+    // Auto-populate the final report field with the draft so the admin has a starting point to edit
+    event.report = generatedDraft; 
+    
+    await event.save();
+
+    res.json({ 
+      success: true, 
+      message: 'AI Draft generated successfully', 
+      data: { aiDraft: generatedDraft, report: generatedDraft, reportStatus: 'draft' } 
+    });
+    
+  } catch (error) {
+    console.error('AI Generation Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate AI report' });
   }
 };

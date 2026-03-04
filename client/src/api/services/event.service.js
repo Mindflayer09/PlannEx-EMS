@@ -9,3 +9,8 @@ export const deleteEvent = (id) => api.delete(`/events/${id}`);
 export const changeEventPhase = (id, data) => api.patch(`/events/${id}/phase`, data);
 export const finalizeEvent = (id) => api.patch(`/events/${id}/finalize`);
 export const addEventMedia = (id, data) => api.post(`/events/${id}/media`, data);
+
+export const generateEventReport = async (eventId) => {
+  const response = await api.post(`/events/${eventId}/generate-report`);
+  return response.data;
+};
