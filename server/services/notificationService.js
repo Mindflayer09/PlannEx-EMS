@@ -25,6 +25,17 @@ exports.notifyUserApproved = async (user) => {
   );
 };
 
+// 🔥 NEW: notifyUserDeleted function
+exports.notifyUserDeleted = async (user) => {
+  const template = templates.userDeleted(user.name);
+  await createAndSendNotification(
+    user.email,
+    NOTIFICATION_TYPES.USER_DELETED,
+    template,
+    { entityType: 'User', entityId: user._id }
+  );
+};
+
 exports.notifyTaskAssigned = async (task) => {
   const template = templates.taskAssigned(
     task.title,

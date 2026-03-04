@@ -34,6 +34,7 @@ const NOTIFICATION_TYPES = {
   PHASE_CHANGED: 'phase_changed',
   EVENT_FINALIZED: 'event_finalized',
   USER_APPROVED: 'user_approved',
+  USER_DELETED: 'user_deleted', 
 };
 
 const NOTIFICATION_STATUSES = {

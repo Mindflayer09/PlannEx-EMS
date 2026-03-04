@@ -56,6 +56,19 @@ const templates = {
     `,
   }),
 
+  // 🔥 NEW: User Deleted Template
+  userDeleted: (userName) => ({
+    subject: 'Account Removed - Club Event Management',
+    body: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <h2>Hello, ${userName}</h2>
+        <p>Your account has been removed from the platform by an administrator.</p>
+        <p>If you believe this is a mistake, please reach out to your club leadership.</p>
+        <p>Best regards,<br>Club Event Management Team</p>
+      </div>
+    `,
+  }),
+
   taskAssigned: (taskTitle, deadline, assignedBy) => ({
     subject: `New Task Assigned: ${taskTitle}`,
     body: `

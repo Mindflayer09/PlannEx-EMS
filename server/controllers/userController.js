@@ -1,5 +1,6 @@
 const User = require('../models/User');
-const { notifyUserApproved } = require('../services/notificationService');
+
+const { notifyUserApproved, notifyUserDeleted } = require('../services/notificationService');
 
 // GET /api/users
 exports.getAllUsers = async (req, res, next) => {
@@ -51,7 +52,7 @@ exports.approveUser = async (req, res, next) => {
       });
     }
 
-    //  Prevent cross-club approval
+    // Prevent cross-club approval
     if (user.club.toString() !== req.user.club.toString()) {
       return res.status(403).json({
         success: false,
@@ -59,7 +60,7 @@ exports.approveUser = async (req, res, next) => {
       });
     }
 
-    //  Prevent approving yourself
+    // Prevent approving yourself
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
@@ -69,6 +70,13 @@ exports.approveUser = async (req, res, next) => {
 
     user.isApproved = true;
     await user.save();
+
+    // 🔥 NEW: Trigger approval email
+    try {
+      await notifyUserApproved(user);
+    } catch (emailErr) {
+      console.error('Approval email failed to send:', emailErr);
+    }
 
     res.json({
       success: true,
@@ -109,7 +117,7 @@ exports.updateRole = async (req, res, next) => {
       });
     }
 
-    //  NEW: Prevent multiple admins per club
+    // Prevent multiple admins per club
     if (role === 'admin') {
       const existingAdmin = await User.findOne({
         club: req.user.club,
@@ -177,7 +185,7 @@ exports.deleteUser = async (req, res, next) => {
       });
     }
 
-    //  Prevent deleting yourself
+    // Prevent deleting yourself
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
@@ -185,7 +193,7 @@ exports.deleteUser = async (req, res, next) => {
       });
     }
 
-    //  Prevent cross-club deletion
+    // Prevent cross-club deletion
     if (user.club.toString() !== req.user.club.toString()) {
       return res.status(403).json({
         success: false,
@@ -193,7 +201,7 @@ exports.deleteUser = async (req, res, next) => {
       });
     }
 
-    //  Prevent deleting another admin
+    // Prevent deleting another admin
     if (user.role === 'admin') {
       return res.status(400).json({
         success: false,
@@ -202,6 +210,12 @@ exports.deleteUser = async (req, res, next) => {
     }
 
     await User.findByIdAndDelete(req.params.id);
+
+    try {
+      await notifyUserDeleted(user);
+    } catch (emailErr) {
+      console.error('Deletion email failed to send:', emailErr);
+    }
 
     res.json({
       success: true,
