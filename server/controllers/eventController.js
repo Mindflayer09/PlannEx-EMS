@@ -1,4 +1,5 @@
 const Event = require('../models/Event');
+const Report = require('../models/Report');
 const Task = require('../models/Task');
 const { PHASE_ORDER, EVENT_PHASES, TASK_PRIORITIES, TASK_STATUSES } = require('../utils/constants');
 const { notifyPhaseChanged, notifyEventFinalized } = require('../services/notificationService');
@@ -45,20 +46,37 @@ exports.getPublicEvents = async (req, res, next) => {
     const { page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Only fetch events where the report is officially published
-    const events = await Event.find({ isPublic: true, reportStatus: 'published' })
+    // Fetch finalized events
+    const events = await Event.find({ isPublic: true, isFinalized: true })
       .populate('club', 'name logo')
-      .select('title description club media report budget createdAt')
+      .select('title description club media budget createdAt')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Event.countDocuments({ isPublic: true, reportStatus: 'published' });
+    // Fetch associated reports for these events
+    const eventIds = events.map(e => e._id);
+    const reports = await Report.find({ 
+      event: { $in: eventIds },
+      isPublic: true,
+      status: 'published'
+    });
+
+    // Combine events with their reports
+    const eventsWithReports = events.map(event => {
+      const report = reports.find(r => r.event.toString() === event._id.toString());
+      return {
+        ...event.toObject(),
+        report: report ? report.content : '',
+      };
+    });
+
+    const total = await Event.countDocuments({ isPublic: true, isFinalized: true });
 
     res.json({
       success: true,
       data: {
-        events,
+        events: eventsWithReports,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -89,6 +107,25 @@ exports.getEventById = async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     res.json({ success: true, data: { event, tasks } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/events/:id/report
+exports.getEventReport = async (req, res, next) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const report = await Report.findOne({ event: event._id });
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found for this event' });
+    }
+
+    res.json({ success: true, data: { report } });
   } catch (error) {
     next(error);
   }
@@ -128,14 +165,10 @@ exports.updateEvent = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Cannot edit a finalized event' });
     }
 
-    // Added aiDraft and reportStatus to allow saving edits before publishing
-    const { title, description, report, budget, aiDraft, reportStatus } = req.body;
+    const { title, description, budget } = req.body;
     
     if (title) event.title = title;
     if (description) event.description = description;
-    if (report !== undefined) event.report = report;
-    if (aiDraft !== undefined) event.aiDraft = aiDraft;
-    if (reportStatus !== undefined) event.reportStatus = reportStatus;
     if (budget !== undefined) event.budget = budget;
 
     await event.save();
@@ -238,11 +271,19 @@ exports.finalizeEvent = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Event is already finalized' });
     }
 
+    // Finalize event
     event.isFinalized = true;
     event.isPublic = true;
-    event.reportStatus = 'published'; // Publish the report automatically when finalizing
-    
+    event.reportStatus = 'published';
     await event.save();
+
+    // Also publish the associated report
+    const report = await Report.findOne({ event: event._id });
+    if (report) {
+      report.isPublic = true;
+      report.status = 'published';
+      await report.save();
+    }
 
     notifyEventFinalized(event).catch(console.error);
 
@@ -279,7 +320,6 @@ exports.addMedia = async (req, res, next) => {
 exports.generateEventReport = async (req, res, next) => {
   try {
     const event = await Event.findById(req.params.id).populate('club', 'name');
-    
     if (!event) {
       return res.status(404).json({ success: false, message: 'Event not found' });
     }
@@ -319,24 +359,42 @@ exports.generateEventReport = async (req, res, next) => {
 
     // 3. Initialize Gemini
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent(prompt);
-    const generatedDraft = result.response.text();
+    const generatedContent = result.response.text();
 
-    // 4. Save to Database
-    event.aiDraft = generatedDraft;
+    // 4. Save to Report collection (create or update)
+    let report = await Report.findOne({ event: event._id });
+    if (!report) {
+      report = new Report({
+        event: event._id,
+        club: event.club._id,
+        content: generatedContent,
+        createdBy: req.user._id,
+        status: 'draft', // Start as draft until admin finalizes
+        isPublic: false,
+      });
+    } else {
+      report.content = generatedContent;
+      report.status = 'draft';
+    }
+    await report.save();
+
+    // Update event reportStatus to track workflow
     event.reportStatus = 'draft';
-    
-    // Auto-populate the final report field with the draft so the admin has a starting point to edit
-    event.report = generatedDraft; 
-    
     await event.save();
 
     res.json({ 
       success: true, 
       message: 'AI Draft generated successfully', 
-      data: { aiDraft: generatedDraft, report: generatedDraft, reportStatus: 'draft' } 
+      data: { 
+        report: {
+          _id: report._id,
+          content: generatedContent,
+          status: 'draft'
+        }
+      } 
     });
     
   } catch (error) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getPublicEvents } from '../../api/services/event.service';
+import { getAllEvents } from '../../api/services/event.service';
 import { Calendar, MapPin, Image } from 'lucide-react';
 import Spinner from '../../components/common/Spinner';
 import Card from '../../components/common/Card';
@@ -18,8 +18,9 @@ export default function PublicReports() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await getPublicEvents();
+        const res = await getAllEvents({ limit: 100 });
         setEvents(res.data.events);
+        console.log('Fetched public events:', res.data.events);
       } catch (err) {
         console.error('Failed to load public events:', err);
       } finally {

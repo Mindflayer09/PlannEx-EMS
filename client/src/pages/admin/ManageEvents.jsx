@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAllEvents, createEvent, updateEvent, deleteEvent, changeEventPhase, finalizeEvent, generateEventReport } from '../../api/services/event.service';
+import { updateReport } from '../../api/services/report.service';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,6 +35,7 @@ export default function ManageEvents() {
   // 🔥 NEW AI Report State
   const [showReportModal, setShowReportModal] = useState(false);
   const [activeReportEvent, setActiveReportEvent] = useState(null);
+  const [activeReportId, setActiveReportId] = useState(null);
   const [reportText, setReportText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -70,8 +72,8 @@ export default function ManageEvents() {
   // 🔥 Open the AI Report Modal
   const openReportModal = (event) => {
     setActiveReportEvent(event);
-    // Load existing report or draft if it exists
-    setReportText(event.report || event.aiDraft || '');
+    setActiveReportId(null); // Will be set after fetching or generating report
+    setReportText('');
     setShowReportModal(true);
   };
 
@@ -96,8 +98,12 @@ export default function ManageEvents() {
     setIsGenerating(true);
     try {
       const res = await generateEventReport(activeReportEvent._id);
-      // Populate the textarea with the AI's response
-      setReportText(res.data.report || res.data.aiDraft);
+      // Report is now in the Report model
+      const reportId = res.data.report._id;
+      const content = res.data.report.content;
+      
+      setActiveReportId(reportId);
+      setReportText(content);
       toast.success('AI Draft generated successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to generate AI report');
@@ -109,9 +115,14 @@ export default function ManageEvents() {
   // 🔥 Handle Saving the Report edits
   const handleSaveReport = async () => {
     try {
-      await updateEvent(activeReportEvent._id, { 
-        report: reportText, 
-        reportStatus: 'draft' 
+      if (!activeReportId) {
+        toast.error('No report found. Please generate AI draft first.');
+        return;
+      }
+      
+      await updateReport(activeReportId, { 
+        content: reportText, 
+        status: 'draft' 
       });
       toast.success('Report saved successfully');
       setShowReportModal(false);

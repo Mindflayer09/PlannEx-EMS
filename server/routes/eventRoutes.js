@@ -14,6 +14,7 @@ router.use(authenticate);
 
 router.get('/', eventController.getAllEvents);
 router.get('/:id', eventController.getEventById);
+router.get('/:id/report', eventController.getEventReport);
 
 router.post('/', requireRole('admin', 'sub-admin'), validate(createEventSchema), eventController.createEvent);
 router.put('/:id', requireRole('admin', 'sub-admin'), validate(updateEventSchema), eventController.updateEvent);
