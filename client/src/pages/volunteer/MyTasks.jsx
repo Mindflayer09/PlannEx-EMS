@@ -79,7 +79,7 @@ export default function MyTasks() {
 
               {(task.status === 'pending' || task.status === 'rejected') && (
                 <Button size="sm" onClick={() => navigate(`/volunteer/submit/${task._id}`)}>
-                  <Upload className="h-3.5 w-3.5 mr-1" /> Submit
+                  <Upload className="h-3.5 w-3.5 mr-1 cursor-pointer" /> Submit
                 </Button>
               )}
 

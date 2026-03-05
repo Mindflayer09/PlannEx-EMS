@@ -54,22 +54,48 @@ exports.getPublicEvents = async (req, res, next) => {
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Fetch associated reports for these events
+    // Fetch associated reports
     const eventIds = events.map(e => e._id);
-    const reports = await Report.find({ 
+    const reports = await Report.find({
       event: { $in: eventIds },
       isPublic: true,
       status: 'published'
     });
 
-    // Combine events with their reports
-    const eventsWithReports = events.map(event => {
-      const report = reports.find(r => r.event.toString() === event._id.toString());
-      return {
-        ...event.toObject(),
-        report: report ? report.content : '',
-      };
-    });
+    // Combine events with reports AND images
+    const eventsWithReports = await Promise.all(
+      events.map(async (event) => {
+        const report = reports.find(
+          (r) => r.event.toString() === event._id.toString()
+        );
+
+        // Fetch approved tasks for the event
+        const tasks = await Task.find({
+          event: event._id,
+          status: TASK_STATUSES.APPROVED
+        }).select('submissions');
+
+        // Extract media URLs
+        const images = [];
+        tasks.forEach(task => {
+          if (task.submissions && Array.isArray(task.submissions)) {
+            task.submissions.forEach(sub => {
+              if (sub.media && Array.isArray(sub.media)) {
+                sub.media.forEach(m => {
+                  if (m.url) images.push(m.url);
+                });
+              }
+            });
+          }
+        });
+
+        return {
+          ...event.toObject(),
+          report: report ? report.content : '',
+          images // 👈 attach images to response
+        };
+      })
+    );
 
     const total = await Event.countDocuments({ isPublic: true, isFinalized: true });
 
@@ -85,6 +111,7 @@ exports.getPublicEvents = async (req, res, next) => {
         },
       },
     });
+
   } catch (error) {
     next(error);
   }
@@ -316,7 +343,7 @@ exports.addMedia = async (req, res, next) => {
   }
 };
 
-// POST /api/events/:id/generate-report (NEW AI ROUTE)
+// POST /api/events/:id/generate-report (UPDATED AI ROUTE for JSON)
 exports.generateEventReport = async (req, res, next) => {
   try {
     const event = await Event.findById(req.params.id).populate('club', 'name');
@@ -336,7 +363,7 @@ exports.generateEventReport = async (req, res, next) => {
       return `- ${t.title} (Completed by: ${volunteerName})`;
     }).join('\n');
 
-    // 2. Construct the Prompt
+    // 2. Construct the Prompt (REMOVED BUDGET, ADDED JSON SCHEMA)
     const prompt = `
       You are an expert Public Relations Officer for the club "${event.club.name}".
       Your job is to write a professional, engaging, and polished post-event report for the general public.
@@ -344,7 +371,6 @@ exports.generateEventReport = async (req, res, next) => {
       Event Data:
       - Title: ${event.title}
       - Description: ${event.description}
-      - Budget Utilized: $${event.budget}
       
       Key Accomplishments (Tasks Completed):
       ${taskSummaries || 'Routine event setup and execution.'}
@@ -352,17 +378,30 @@ exports.generateEventReport = async (req, res, next) => {
       Rules:
       1. Use a formal, celebratory, and community-focused tone.
       2. NEVER invent or hallucinate metrics, numbers, names, or events. Only use the provided data.
-      3. DO NOT include sensitive information or internal club disputes.
-      4. Format the output in clean Markdown with headings (##), bullet points, and short paragraphs.
-      5. End with a concluding sentence thanking the community.
+      3. DO NOT include sensitive information, internal club disputes, or financial/budget details.
+      4. You MUST return the response strictly as a JSON object with the following structure:
+         {
+           "headline": "A catchy, news-style headline",
+           "leadParagraph": "A 2-3 sentence engaging summary of the event",
+           "teamHighlights": [
+             { "role": "Task Title", "description": "1 sentence describing the contribution and naming the volunteer" }
+           ]
+         }
     `;
 
-    // 3. Initialize Gemini
+    // 3. Initialize Gemini (ADDED JSON MIME TYPE)
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      // This config forces the API to strictly output JSON
+      generationConfig: { responseMimeType: "application/json" } 
+    });
 
     const result = await model.generateContent(prompt);
-    const generatedContent = result.response.text();
+    
+    // Parse the returned JSON string into a usable JavaScript object
+    const generatedJSON = JSON.parse(result.response.text());
+    
 
     // 4. Save to Report collection (create or update)
     let report = await Report.findOne({ event: event._id });
@@ -370,19 +409,20 @@ exports.generateEventReport = async (req, res, next) => {
       report = new Report({
         event: event._id,
         club: event.club._id,
-        content: generatedContent,
+        content: generatedJSON, // Now saving the JSON object instead of a string
         createdBy: req.user._id,
-        status: 'draft', // Start as draft until admin finalizes
-        isPublic: false,
+        status: targetStatus,
+        isPublic: targetIsPublic,
       });
     } else {
-      report.content = generatedContent;
-      report.status = 'draft';
+      report.content = generatedJSON; // Update with new JSON object
+      report.status = targetStatus;
+      report.isPublic = targetIsPublic;
     }
     await report.save();
 
     // Update event reportStatus to track workflow
-    event.reportStatus = 'draft';
+    event.reportStatus = targetStatus;
     await event.save();
 
     res.json({ 
@@ -391,8 +431,9 @@ exports.generateEventReport = async (req, res, next) => {
       data: { 
         report: {
           _id: report._id,
-          content: generatedContent,
-          status: 'draft'
+          content: generatedJSON,
+          status: targetStatus,
+          isPublic: targetIsPublic,
         }
       } 
     });

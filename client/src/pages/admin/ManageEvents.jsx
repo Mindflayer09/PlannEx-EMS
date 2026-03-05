@@ -173,7 +173,7 @@ export default function ManageEvents() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Manage Events</h1>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1" /> New Event
+          <Plus className="h-4 w-4 mr-1 cursor-pointer" /> New Event
         </Button>
       </div>
 
@@ -246,7 +246,7 @@ export default function ManageEvents() {
           <Input label="Budget (optional)" type="number" error={errors.budget?.message} {...register('budget')} />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit">{editing ? 'Update' : 'Create'}</Button>
+            <Button className="cursor-pointer" type="submit">{editing ? 'Update' : 'Create'}</Button>
           </div>
         </form>
       </Modal>

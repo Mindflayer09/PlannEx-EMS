@@ -13,8 +13,12 @@ const reportSchema = new mongoose.Schema(
       required: true,
     },
     content: {
-      type: String,
-      required: true, // This is where the Gemini AI Markdown will be stored
+     headline: String,
+     leadParagraph: String,
+     teamHighlights: [{
+     role: String,
+     description: String
+     }],
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -169,34 +169,47 @@ exports.deleteTask = async (req, res, next) => {
 // POST /api/tasks/:id/submit
 exports.submitTask = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const { id } = req.params;
+    const { media, notes } = req.body;
+
+    const safeMedia = Array.isArray(media) ? media : [];
+
+    const task = await Task.findById(id);
+
     if (!task) {
-      return res.status(404).json({ success: false, message: 'Task not found' });
+      return res.status(404).json({ success: false, message: "Task not found" });
     }
 
     if (task.assignedTo.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Only the assigned user can submit' });
+      return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    if (task.status === TASK_STATUSES.APPROVED) {
-      return res.status(400).json({ success: false, message: 'Task is already approved' });
-    }
+    task.submissions.push({
+      media: safeMedia,
+      notes: notes || "",
+      uploadedAt: new Date(),
+    });
 
-    const { fileUrl, fileType, publicId, notes } = req.body;
-    task.submissions.push({ fileUrl, fileType, publicId, notes });
     task.status = TASK_STATUSES.SUBMITTED;
-    task.rejectionReason = '';
+    task.rejectionReason = "";
+
     await task.save();
 
-    await task.populate('assignedTo', 'name email');
-    await task.populate('assignedBy', 'name email');
-    await task.populate('event', 'title phase');
+    await task.populate("assignedTo", "name email");
+    await task.populate("assignedBy", "name email");
+    await task.populate("event", "title phase");
 
     notifyTaskSubmitted(task).catch(console.error);
 
-    res.json({ success: true, message: 'Task submitted successfully', data: { task } });
+    res.json({
+      success: true,
+      message: "Task submitted successfully!",
+      data: { task },
+    });
+
   } catch (error) {
-    next(error);
+    console.error("❌ SUBMIT TASK ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

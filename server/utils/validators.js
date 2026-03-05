@@ -49,11 +49,15 @@ const updateTaskSchema = Joi.object({
   priority: Joi.string().valid('low', 'medium', 'high', 'critical').optional(),
 });
 
-const submitTaskSchema = Joi.object({
-  fileUrl: Joi.string().uri().required(),
-  fileType: Joi.string().required(),
-  publicId: Joi.string().optional(),
-  notes: Joi.string().max(500).allow('').optional(),
+const submissionSchema = Joi.object({
+  notes: Joi.string().allow('').optional(),
+  media: Joi.array().items(
+    Joi.object({
+      url: Joi.string().required(),
+      fileType: Joi.string().optional(),
+      publicId: Joi.string().optional()
+    })
+  ).optional()
 });
 
 const rejectTaskSchema = Joi.object({
@@ -72,7 +76,7 @@ module.exports = {
   changePhaseSchema,
   createTaskSchema,
   updateTaskSchema,
-  submitTaskSchema,
+  submissionSchema,
   rejectTaskSchema,
   updateRoleSchema,
 };

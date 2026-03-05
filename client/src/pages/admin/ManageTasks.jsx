@@ -113,7 +113,7 @@ export default function ManageTasks() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Manage Tasks</h1>
         <Button onClick={() => { reset({ title: '', description: '', event: '', assignedTo: '', deadline: '', priority: 'medium', phase: '' }); setShowModal(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> New Task
+          <Plus className="h-4 w-4 mr-1 cursor-pointer" /> New Task
         </Button>
       </div>
 
@@ -192,39 +192,110 @@ export default function ManageTasks() {
           <Select label="Priority" options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }, { value: 'critical', label: 'Critical' }]} {...register('priority')} />
           <Select label="Phase" placeholder="Select phase" options={[{ value: 'pre-event', label: 'Pre-Event' }, { value: 'during-event', label: 'During Event' }, { value: 'post-event', label: 'Post-Event' }]} error={errors.phase?.message} {...register('phase')} />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit">Create Task</Button>
+            <Button className="cursor-pointer" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button className="cursor-pointer" type="submit">Create Task</Button>
           </div>
         </form>
       </Modal>
 
       {/* Detail Modal */}
-      <Modal isOpen={!!showDetail} onClose={() => setShowDetail(null)} title={showDetail?.title || 'Task Detail'} size="lg">
+      <Modal 
+        isOpen={!!showDetail} 
+        onClose={() => setShowDetail(null)} 
+        title={showDetail?.title || 'Task Detail'} 
+        size="lg"
+      >
         {showDetail && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">{showDetail.description}</p>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><strong>Status:</strong> <Badge className={STATUS_COLORS[showDetail.status]}>{showDetail.status}</Badge></div>
-              <div><strong>Priority:</strong> <Badge className={PRIORITY_COLORS[showDetail.priority]}>{showDetail.priority}</Badge></div>
-              <div><strong>Deadline:</strong> {formatDate(showDetail.deadline)}</div>
-              <div><strong>Assigned to:</strong> {showDetail.assignedTo?.name}</div>
+          /* 🔥 Scrollable container for long submissions */
+          <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2">
+            
+            {/* Task Overview */}
+            <div>
+              <p className="text-gray-700 leading-relaxed mb-4">{showDetail.description}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Status</span>
+                  <Badge className={STATUS_COLORS[showDetail.status]}>{showDetail.status}</Badge>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Priority</span>
+                  <Badge className={PRIORITY_COLORS[showDetail.priority]}>{showDetail.priority}</Badge>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Deadline</span>
+                  <span className="text-sm font-medium text-gray-700">{formatDate(showDetail.deadline)}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Assigned To</span>
+                  <span className="text-sm font-medium text-gray-700">{showDetail.assignedTo?.name}</span>
+                </div>
+              </div>
             </div>
+
+            {/* Rejection History */}
             {showDetail.rejectionReason && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-800"><strong>Rejection Reason:</strong> {showDetail.rejectionReason}</p>
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-4">
+                <p className="text-sm text-red-800"><strong>Admin Feedback:</strong> {showDetail.rejectionReason}</p>
               </div>
             )}
+
+            {/* 🔥 NEW: Multi-Media Submission Gallery */}
             {showDetail.submissions?.length > 0 && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Submissions ({showDetail.submissions.length})</h4>
-                <div className="space-y-2">
+              <div className="border-t border-gray-100 pt-6">
+                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  Volunteer Submissions 
+                  <span className="bg-indigo-100 text-indigo-600 text-xs px-2 py-0.5 rounded-full">
+                    {showDetail.submissions.length}
+                  </span>
+                </h4>
+                
+                <div className="space-y-6">
                   {showDetail.submissions.map((sub, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
-                      <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline truncate">
-                        {sub.fileUrl.split('/').pop()}
-                      </a>
-                      <span className="text-xs text-gray-400">{formatDate(sub.uploadedAt)}</span>
-                      {sub.notes && <span className="text-xs text-gray-500">- {sub.notes}</span>}
+                    <div key={i} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                      {/* Submission Header */}
+                      <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Attempt #{i + 1}</span>
+                        <span className="text-xs text-gray-400">{formatDate(sub.uploadedAt)}</span>
+                      </div>
+                      
+                      {/* Note Content */}
+                      {sub.notes && (
+                        <div className="p-4 bg-indigo-50/30">
+                          <p className="text-sm text-gray-600 italic">"{sub.notes}"</p>
+                        </div>
+                      )}
+
+                      {/* Image/File Gallery Grid */}
+                      <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {sub.media?.map((file, fileIdx) => {
+                          const isImage = file.url.match(/\.(jpeg|jpg|gif|png|webp)/i) || file.fileType?.includes('image');
+                          return (
+                            <div key={fileIdx} className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-100">
+                              {isImage ? (
+                                <img 
+                                  src={file.url} 
+                                  className="w-full h-full object-cover transition-transform group-hover:scale-105" 
+                                  alt="Submission" 
+                                />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center">
+                                  <FileText className="h-8 w-8 text-indigo-400 mb-1" />
+                                  <span className="text-[10px] text-gray-500 truncate w-full px-2">Document</span>
+                                </div>
+                              )}
+                              {/* Hover Overlay to view full size */}
+                              <a 
+                                href={file.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                              >
+                                <Eye className="text-white h-5 w-5" />
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   ))}
                 </div>

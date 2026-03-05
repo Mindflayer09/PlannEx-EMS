@@ -53,7 +53,7 @@ exports.uploadFile = async (req, res, next) => {
       data: {
         url: result.secure_url,
         publicId: result.public_id,
-        fileType: req.file.mimetype,
+        fileType: req.file.mimetype.split('/')[0],
         format: result.format,
         size: result.bytes,
       },

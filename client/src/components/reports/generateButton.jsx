@@ -36,7 +36,7 @@ export default function GenerateReportButton({ eventId, onReportGenerated }) {
       className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white transition-all shadow-sm
         ${isGenerating 
           ? 'bg-indigo-400 cursor-not-allowed' 
-          : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-md'
+          : 'bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-md'
         }`}
     >
       {isGenerating ? (
