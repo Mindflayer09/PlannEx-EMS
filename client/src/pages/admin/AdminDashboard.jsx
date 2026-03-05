@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import Card from '../../components/common/Card';
 import Spinner from '../../components/common/Spinner';
-import GenerateReportButton from '../../components/reports/GenerateReportButton';
+import GenerateReportButton from '../../components/reports/generateButton';
 import { Users, Calendar, ClipboardList, UserCheck, FileText } from 'lucide-react';
 
 export default function AdminDashboard() {
