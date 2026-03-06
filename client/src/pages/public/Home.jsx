@@ -93,7 +93,7 @@ export default function Home() {
                     setAuthMode("login");
                     setShowAuthModal(true);
                   }}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800 cursor-pointer"
                 >
                   Login
                 </button>
@@ -103,7 +103,7 @@ export default function Home() {
                     setAuthMode("register");
                     setShowAuthModal(true);
                   }}
-                  className="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer"
                 >
                   Register
                 </button>
