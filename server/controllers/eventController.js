@@ -53,7 +53,7 @@ exports.getPublicEvents = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-
+    
     // Fetch associated reports
     const eventIds = events.map(e => e._id);
     const reports = await Report.find({
@@ -74,7 +74,7 @@ exports.getPublicEvents = async (req, res, next) => {
           event: event._id,
           status: TASK_STATUSES.APPROVED
         }).select('submissions');
-
+        
         // Extract media URLs
         const images = [];
         tasks.forEach(task => {
@@ -405,24 +405,25 @@ exports.generateEventReport = async (req, res, next) => {
 
     // 4. Save to Report collection (create or update)
     let report = await Report.findOne({ event: event._id });
+    
     if (!report) {
       report = new Report({
         event: event._id,
         club: event.club._id,
         content: generatedJSON, // Now saving the JSON object instead of a string
         createdBy: req.user._id,
-        status: targetStatus,
-        isPublic: targetIsPublic,
+        status: 'published',
+        isPublic: 'true',
       });
     } else {
       report.content = generatedJSON; // Update with new JSON object
-      report.status = targetStatus;
-      report.isPublic = targetIsPublic;
+      report.status = 'published';
+      report.isPublic = 'true';
     }
     await report.save();
 
     // Update event reportStatus to track workflow
-    event.reportStatus = targetStatus;
+    event.reportStatus = event.targetStatus;
     await event.save();
 
     res.json({ 
@@ -432,8 +433,8 @@ exports.generateEventReport = async (req, res, next) => {
         report: {
           _id: report._id,
           content: generatedJSON,
-          status: targetStatus,
-          isPublic: targetIsPublic,
+          status: event.targetStatus,
+          isPublic: event.targetIsPublic,
         }
       } 
     });
