@@ -64,7 +64,7 @@ exports.approveUser = async (req, res, next) => {
     await user.save();
     try {
       console.log(` Attempting to notify approved user: ${user.email}`);
-      await notifyUserApproved(user);
+      notifyUserApproved(user);
     } catch (err) {
       // This will now catch the network error specifically
       console.error('❌ Controller Email Error:', err.message);

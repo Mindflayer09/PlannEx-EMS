@@ -35,8 +35,8 @@ const createTransporter = () => {
       minVersion: "TLSv1.2",
     },
     
-    connectionTimeout: 20000,
-    greetingTimeout: 20000,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
     
     // 🔍 DEBUG: Set these to true if it STILL fails to see the raw logs
     logger: false, 
