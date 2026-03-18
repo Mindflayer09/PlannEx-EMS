@@ -1,37 +1,46 @@
-const dns = require('node:dns');
 const nodemailer = require("nodemailer");
 const Notification = require('../models/Notification');
 
-// 🛡️ THE NUCLEAR OPTION: Force IPv4 globally for this process.
-// This is the only way to stop the "connect ENETUNREACH" IPv6 error on Render.
-dns.setDefaultResultOrder("ipv4first");
+// ✅ We've moved the global DNS fix to server.js, so we keep this file focused 
+// on the transporter and templates.
 
 let transporter = null;
 
 /**
  * ⚙️ Transporter Configuration
+ * Hard-coded for IPv4 stability on Render
  */
 const createTransporter = () => {
-  console.log(`📡 Initializing Mailer for ${process.env.SMTP_USER}`);
+  console.log(`📡 SMTP: Connecting to Gmail via IPv4...`);
 
   return nodemailer.createTransport({
-    // Using 'service: gmail' is better than 'host' as it applies Google-specific tweaks
-    service: 'gmail',
+    // ✅ SWITCH: Use explicit host instead of 'service: gmail' 
+    // This gives us better control over the 'family' setting.
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Must be false for 587
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS, // 16-character App Password
+      pass: process.env.SMTP_PASS,
     },
-    // Force IPv4 at the socket level
+    // ✅ FORCE IPv4: 4 = IPv4, 6 = IPv6. This is the critical line.
     family: 4, 
-    // Optimization for Render's environment
+    
+    // Pooling keeps connections open for faster delivery
     pool: true,
     maxConnections: 3,
+    
     tls: {
       rejectUnauthorized: false,
       minVersion: "TLSv1.2",
     },
+    
     connectionTimeout: 20000,
     greetingTimeout: 20000,
+    
+    // 🔍 DEBUG: Set these to true if it STILL fails to see the raw logs
+    logger: false, 
+    debug: false,
   });
 };
 
@@ -48,8 +57,6 @@ const getTransporter = () => {
 const sendEmail = async (to, subject, html) => {
   try {
     const mail = getTransporter();
-    
-    // Always use the SMTP_USER as the 'from' address to avoid spam filtering
     const sender = `"PlannEx Platform" <${process.env.SMTP_USER}>`;
 
     const info = await mail.sendMail({
@@ -59,10 +66,10 @@ const sendEmail = async (to, subject, html) => {
       html,
     });
     
-    console.log(`✅ Email delivered: ${info.messageId}`);
+    console.log(`✅ Email sent to ${to}: ${info.messageId}`);
     return true;
   } catch (error) {
-    console.error(`❌ SMTP Connection Failed for ${to}:`, error.message);
+    console.error(`❌ SMTP Failed: ${error.message}`);
     throw error;
   }
 };
@@ -83,15 +90,12 @@ const sendWithRetry = async (notification, maxRetries = 3) => {
   } catch (error) {
     notification.retryCount += 1;
     notification.error = error.message;
-
-    if (notification.retryCount >= maxRetries) {
-      notification.status = 'failed';
-    } else {
-      notification.status = 'pending'; 
-    }
+    
+    // Status stays 'pending' until maxRetries is hit
+    notification.status = notification.retryCount >= maxRetries ? 'failed' : 'pending';
     
     await notification.save();
-    console.log(`🔄 Notification ${notification._id} set to ${notification.status} (Attempt ${notification.retryCount})`);
+    console.log(`🔄 Notification ${notification._id} status: ${notification.status} (Retry ${notification.retryCount}/${maxRetries})`);
   }
 };
 
@@ -121,7 +125,7 @@ const templates = {
     subject: `✔ Account Approved - Welcome to ${orgName}`,
     body: emailWrapper(`
       <h2 style="color: #111827; margin-bottom: 16px;">Welcome, ${userName}!</h2>
-      <p style="font-size: 16px;">Great news! Your account for <strong>${orgName}</strong> has been approved by an administrator.</p>
+      <p style="font-size: 16px;">Great news! Your account for <strong>${orgName}</strong> has been approved.</p>
       <div style="margin-top: 30px; text-align: center;">
         <a href="${process.env.CLIENT_URL}/login" style="background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">Login to Dashboard</a>
       </div>
@@ -155,7 +159,7 @@ const templates = {
     subject: `Action Required: Task Submission for ${taskTitle}`,
     body: emailWrapper(`
       <h2 style="color: #111827; margin-bottom: 16px;">Review Needed</h2>
-      <p style="font-size: 16px;">A new submission has been received from <strong>${submittedBy}</strong> for the task: <strong>${taskTitle}</strong>.</p>
+      <p style="font-size: 16px;">A submission has been received from <strong>${submittedBy}</strong> for the task: <strong>${taskTitle}</strong>.</p>
     `),
   }),
 
@@ -195,7 +199,6 @@ const templates = {
   }),
 };
 
-// Cleaned up the exports
 module.exports = { 
   sendEmail, 
   sendWithRetry, 

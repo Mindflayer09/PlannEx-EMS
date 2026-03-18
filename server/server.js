@@ -1,11 +1,13 @@
+const dns = require('node:dns');
+dns.setDefaultResultOrder('ipv4first'); 
+
+const dotenv = require('dotenv');
+dotenv.config();
+
+// Now you can import everything else
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const dotenv = require('dotenv');
-const dns = require('node:dns');
-dns.setDefaultResultOrder('ipv4first');
-
-dotenv.config();
 
 const connectDB = require('./config/db');
 const { connectCloudinary } = require('./config/cloudinary');
@@ -60,7 +62,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000; // Render usually uses 10000
 
 const start = async () => {
   try {
@@ -69,6 +71,7 @@ const start = async () => {
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+      console.log(`📡 DNS Resolution Order: IPv4 Preferred`);
     });
   } catch (error) {
     console.error('Failed to start server:', error.message);

@@ -62,14 +62,12 @@ exports.approveUser = async (req, res, next) => {
 
     user.isApproved = true;
     await user.save();
-
-    // ✅ FIX: Await the notification so the server doesn't "kill" the task early
     try {
+      console.log(` Attempting to notify approved user: ${user.email}`);
       await notifyUserApproved(user);
-      console.log(`📧 Approval email triggered for: ${user.email}`);
     } catch (err) {
-      console.error('❌ Email Notification Failed:', err.message);
-      // We don't return an error to the user because the DB update was successful
+      // This will now catch the network error specifically
+      console.error('❌ Controller Email Error:', err.message);
     }
 
     res.json({ success: true, message: 'User approved successfully' });
@@ -93,27 +91,23 @@ exports.updateRole = async (req, res, next) => {
 // 🔴 FIX 2: Added notifyUserDeleted and proper sequencing
 exports.deleteUser = async (req, res, next) => {
   try {
-    // 1. Find and populate user first (to get their email and team name for the template)
     const user = await User.findById(req.params.id).populate('team');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // 2. Permission check
     const canDelete = isSuperAdmin(req) || (user.team?._id.toString() === req.user.team?.toString());
     if (!canDelete || user._id.toString() === req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Permission denied' });
     }
 
-    // 3. Send notification BEFORE deleting from database
+    // ✅ Notify BEFORE deletion so we have the user data for the template
     try {
+      console.log(` Attempting to notify deleted user: ${user.email}`);
       await notifyUserDeleted(user);
-      console.log(`📧 Deletion email triggered for: ${user.email}`);
     } catch (err) {
-      console.error('❌ Deletion Notification Failed:', err.message);
+      console.error('❌ Controller Deletion Email Error:', err.message);
     }
 
-    // 4. Finally, remove the record
     await User.findByIdAndDelete(req.params.id);
-    
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) { next(error); }
 };
