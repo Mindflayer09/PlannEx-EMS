@@ -174,13 +174,14 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
 
           <Select
             label="Join Organization"
+            placeholder="Select your organisation" // ✅ Added placeholder
             disabled={!!preSelectedTeamId}
             options={teams?.map((t) => ({
-              value: t._id,
-              label: t.name,
-            })) || []}
-            error={errors.team?.message}
-            {...register("team")}
+             value: t._id,
+             label: t.name,
+             })) || []}
+              error={errors.team?.message}
+              {...register("team")}
           />
 
           <Select
