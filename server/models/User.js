@@ -26,16 +26,18 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    // App-level role (e.g., SUPER_ADMIN for you, USER for everyone else)
     role: {
       type: String,
       enum: Object.values(ROLES),
-      default: ROLES.VOLUNTEER,
+      default: ROLES.USER, // Changed from VOLUNTEER to a more general term if you updated your constants
     },
 
-    club: {
+    // 🚀 Replaced 'club' with 'team'
+    team: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Club',
-      required: [true, 'Club is required'],
+      ref: 'Team', 
+      required: [false],
     },
 
     isApproved: {
@@ -46,22 +48,15 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Normal indexes
-userSchema.index({ club: 1 });
+// Indexes for faster querying
+userSchema.index({ team: 1 });
 userSchema.index({ isApproved: 1 });
-
-//  IMPORTANT: Only 1 ADMIN per club
-userSchema.index(
-  { club: 1, role: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { role: ROLES.ADMIN }
-  }
-);
-
 userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
-  this.password = await bcrypt.hash(this.password, 10);
+  if (!this.isModified('password')) {
+    return; 
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {

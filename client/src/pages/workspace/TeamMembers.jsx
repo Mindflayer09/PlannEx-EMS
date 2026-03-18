@@ -22,7 +22,11 @@ export default function ManageUsers() {
       if (filter === 'approved') params.isApproved = 'true';
 
       const res = await getAllUsers({ ...params, limit: 100 });
-      setUsers(res.data.users);
+      
+      // ✅ THE FIX: Robust data unpacking
+      const fetchedUsers = Array.isArray(res) ? res : (res?.users || res?.data?.users || []);
+      setUsers(fetchedUsers);
+      
     } catch (err) {
       toast.error('Failed to load users');
     } finally {
@@ -34,10 +38,21 @@ export default function ManageUsers() {
     fetchUsers();
   }, [filter]);
 
-  const handleApprove = async (id) => {
+  // 🚀 Handles the Team context and Job Title for the new backend
+  const handleApprove = async (userToApprove) => {
+    // Optional: Ask the admin what title to give this person upon approval
+    const position = window.prompt(
+      `Enter a job title for ${userToApprove.name} (e.g., Volunteer, Coordinator):`, 
+      'Volunteer'
+    );
+    
+    if (position === null) return; // User cancelled the prompt
+
     try {
-      await approveUser(id);
-      toast.success('User approved');
+      // If your user.service.js expects just the user ID (which we set up earlier):
+      await approveUser(userToApprove._id);
+      
+      toast.success(`${userToApprove.name} approved as ${position}!`);
       fetchUsers();
     } catch (err) {
       toast.error(err.message || 'Failed to approve');
@@ -67,7 +82,7 @@ export default function ManageUsers() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Manage Users</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Manage Members</h1>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 mb-6">
@@ -101,8 +116,8 @@ export default function ManageUsers() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Name</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Club</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Role</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Organization</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">App Role</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-500">Actions</th>
               </tr>
@@ -124,22 +139,20 @@ export default function ManageUsers() {
                     <td className="px-4 py-3 text-gray-500">{user.email}</td>
 
                     <td className="px-4 py-3 text-gray-500">
-                      {user.club?.name || '-'}
+                      {user.team?.name || '-'}
                     </td>
 
-                    {/* Role Select */}
+                    {/* App Role Badge */}
                     <td className="px-4 py-3">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
-                        user.role === "admin"
-                        ? "bg-purple-100 text-purple-700"
-                        : user.role === "sub-admin"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-700"
+                          user.role === "super_admin"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-gray-100 text-gray-700"
                         }`}
-                        >
+                      >
                         {user.role}
-                        </span>
+                      </span>
                     </td>
 
                     {/* Status Badge */}
@@ -159,25 +172,17 @@ export default function ManageUsers() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         
-                        {/* Approve button only if:
-                            - Not approved
-                            - Not admin
-                            - Not yourself
-                        */}
-                        {!user.isApproved &&
-                          user.role !== 'admin' &&
-                          !isSelf && (
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => handleApprove(user._id)}
-                            >
-                              <UserCheck className="h-3.5 w-3.5 mr-1" />
-                              Approve
-                            </Button>
-                          )}
+                        {!user.isApproved && !isSelf && (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => handleApprove(user)}
+                          >
+                            <UserCheck className="h-3.5 w-3.5 mr-1" />
+                            Approve
+                          </Button>
+                        )}
 
-                        {/* Delete button - not yourself */}
                         {!isSelf && (
                           <Button
                             size="sm"

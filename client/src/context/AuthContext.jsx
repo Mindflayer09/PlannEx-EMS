@@ -18,22 +18,22 @@ export function AuthProvider({ children }) {
     try {
       const res = await getMe();
 
-      // KEEP OLD LOGIC
       setUser(res.data.user);
       setToken(stored);
 
       const userData = res.data.user;
       
-      if (userData?.club) {
-        //  Safely extract the ID whether club is an object or just a string
-        const clubId = typeof userData.club === 'object' ? userData.club._id : userData.club;
-        localStorage.setItem('selectedClub', clubId);
+      //  CHANGED: 'club' is now 'team'
+      if (userData?.team) {
+        // Safely extract the ID whether team is an object or just a string
+        const teamId = typeof userData.team === 'object' ? userData.team._id : userData.team;
+        localStorage.setItem('selectedTeam', teamId);
       }
 
     } catch {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      localStorage.removeItem('selectedClub'); 
+      localStorage.removeItem('selectedTeam'); //  CHANGED
       setUser(null);
       setToken(null);
     } finally {
@@ -48,17 +48,15 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const res = await loginApi({ email, password });
 
-    // ✅ KEEP YOUR ORIGINAL STRUCTURE
     const { token: newToken, user: userData } = res.data;
 
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(userData));
 
-    // 🔥 ADD THIS (THIS FIXES YOUR SYSTEM)
-    if (userData?.club) {
-      // ✅ Safely extract the ID whether club is an object or just a string
-      const clubId = typeof userData.club === 'object' ? userData.club._id : userData.club;
-      localStorage.setItem('selectedClub', clubId);
+    //  CHANGED: 'club' is now 'team'
+    if (userData?.team) {
+      const teamId = typeof userData.team === 'object' ? userData.team._id : userData.team;
+      localStorage.setItem('selectedTeam', teamId);
     }
 
     setToken(newToken);
@@ -75,16 +73,28 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('selectedClub'); // ✅ important
+    localStorage.removeItem('selectedTeam'); //  CHANGED
     setToken(null);
     setUser(null);
   };
 
   const isAuthenticated = !!token && !!user;
+  
+  //  NEW: Helper flags for UI conditional rendering
+  const isSuperAdmin = user?.role === 'super_admin'; 
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, isAuthenticated, login, register, logout }}
+      value={{ 
+        user, 
+        token, 
+        loading, 
+        isAuthenticated, 
+        isSuperAdmin,
+        login, 
+        register, 
+        logout 
+      }}
     >
       {children}
     </AuthContext.Provider>

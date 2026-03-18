@@ -13,7 +13,7 @@ const { generalLimiter } = require('./middleware/rateLimiter');
 // Route imports
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
-const clubRoutes = require('./routes/clubRoutes');
+const teamRoutes = require('./routes/teamRoutes'); 
 const eventRoutes = require('./routes/eventRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
@@ -37,7 +37,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/clubs', clubRoutes);
+app.use('/api/teams', teamRoutes); 
 app.use('/api/events', eventRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/uploads', uploadRoutes);

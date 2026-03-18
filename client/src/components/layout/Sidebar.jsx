@@ -7,29 +7,31 @@ import {
   ClipboardList,
   FolderOpen,
   CheckSquare,
-  FileCheck,
   ListTodo,
-  Upload,
 } from 'lucide-react';
 import clsx from 'clsx';
 
+// ✅ THE FIX: All links now point to the unified /workspace routes defined in App.jsx
+// and the main dashboard link points to the smart /dashboard redirector!
+
 const adminLinks = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/users', label: 'Manage Users', icon: Users },
-  { to: '/admin/events', label: 'Manage Events', icon: Calendar },
-  { to: '/admin/tasks', label: 'Manage Tasks', icon: ClipboardList },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/workspace/members', label: 'Manage Members', icon: Users },
+  { to: '/workspace/events', label: 'Manage Events', icon: Calendar },
+  { to: '/workspace/tasks', label: 'Manage Tasks', icon: ClipboardList },
 ];
 
 const subAdminLinks = [
-  { to: '/subadmin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/subadmin/events', label: 'My Events', icon: FolderOpen },
-  { to: '/subadmin/tasks', label: 'Delegate Tasks', icon: ListTodo },
-  { to: '/subadmin/submissions', label: 'Review Submissions', icon: FileCheck },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/workspace/events', label: 'Workspace Events', icon: FolderOpen },
+  { to: '/workspace/tasks', label: 'Manage Tasks', icon: ListTodo },
+  { to: '/workspace/members', label: 'Team Directory', icon: Users },
 ];
 
 const volunteerLinks = [
-  { to: '/volunteer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/volunteer/tasks', label: 'My Tasks', icon: CheckSquare },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/workspace/events', label: 'Team Events', icon: Calendar },
+  { to: '/workspace/tasks', label: 'My Tasks', icon: CheckSquare },
 ];
 
 const linksByRole = {
@@ -40,6 +42,8 @@ const linksByRole = {
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth();
+  
+  // Safely fallback to an empty array if the role isn't found (like for super_admin)
   const links = linksByRole[user?.role] || [];
 
   return (

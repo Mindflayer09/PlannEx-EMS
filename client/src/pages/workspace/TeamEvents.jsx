@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAllEvents, createEvent, updateEvent, deleteEvent, changeEventPhase, finalizeEvent, generateEventReport } from '../../api/services/event.service';
 import { updateReport } from '../../api/services/report.service';
+import { useAuth } from '../../context/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,20 +25,23 @@ const eventSchema = z.object({
 
 const PHASE_ORDER = ['pre-event', 'during-event', 'post-event'];
 
-export default function ManageEvents() {
+export default function TeamEvents() {
+  const { user: currentUser, isSuperAdmin } = useAuth(); // 👈 GET CURRENT USER
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Standard Create/Edit Event State
+  // Modal States
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
-
-  // 🔥 NEW AI Report State
   const [showReportModal, setShowReportModal] = useState(false);
   const [activeReportEvent, setActiveReportEvent] = useState(null);
   const [activeReportId, setActiveReportId] = useState(null);
   const [reportText, setReportText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // 🛡️ PERMISSION CHECK: Determine if the user has Admin rights
+  // Adjust this logic if your backend returns the specific team accessLevel differently
+  const isTeamAdmin = isSuperAdmin || currentUser?.role === 'admin' || currentUser?.teamRole === 'admin';
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(eventSchema),
@@ -69,10 +73,9 @@ export default function ManageEvents() {
     setShowModal(true);
   };
 
-  // 🔥 Open the AI Report Modal
   const openReportModal = (event) => {
     setActiveReportEvent(event);
-    setActiveReportId(null); // Will be set after fetching or generating report
+    setActiveReportId(null);
     setReportText('');
     setShowReportModal(true);
   };
@@ -93,17 +96,30 @@ export default function ManageEvents() {
     }
   };
 
-  // 🔥 Handle AI Generation
   const handleGenerateAI = async () => {
     setIsGenerating(true);
     try {
       const res = await generateEventReport(activeReportEvent._id);
-      // Report is now in the Report model
       const reportId = res.data.report._id;
-      const content = res.data.report.content;
+      const content = res.data.report.content; 
       
       setActiveReportId(reportId);
-      setReportText(content);
+
+      let formattedMarkdown = '';
+      if (typeof content === 'object' && content !== null) {
+        formattedMarkdown += `# ${content.headline || 'Event Report'}\n\n`;
+        formattedMarkdown += `${content.leadParagraph || ''}\n\n`;
+        if (content.teamHighlights && content.teamHighlights.length > 0) {
+          formattedMarkdown += `### Team Highlights & Contributions\n`;
+          content.teamHighlights.forEach(item => {
+            formattedMarkdown += `- **${item.role}**: ${item.description}\n`;
+          });
+        }
+      } else {
+        formattedMarkdown = content; 
+      }
+
+      setReportText(formattedMarkdown);
       toast.success('AI Draft generated successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to generate AI report');
@@ -112,18 +128,13 @@ export default function ManageEvents() {
     }
   };
 
-  // 🔥 Handle Saving the Report edits
   const handleSaveReport = async () => {
     try {
       if (!activeReportId) {
         toast.error('No report found. Please generate AI draft first.');
         return;
       }
-      
-      await updateReport(activeReportId, { 
-        content: reportText, 
-        status: 'draft' 
-      });
+      await updateReport(activeReportId, { content: reportText, status: 'draft' });
       toast.success('Report saved successfully');
       setShowReportModal(false);
       fetchEvents();
@@ -171,16 +182,24 @@ export default function ManageEvents() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Manage Events</h1>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1 cursor-pointer" /> New Event
-        </Button>
+        <h1 className="text-2xl font-bold text-gray-900">Team Events</h1>
+        
+        {/* 🛡️ CONDITIONALLY RENDER: Only Admins can create new events */}
+        {isTeamAdmin && (
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1 cursor-pointer" /> New Event
+          </Button>
+        )}
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>
       ) : events.length === 0 ? (
-        <Card><p className="text-gray-500 text-center py-8">No events yet. Create your first event!</p></Card>
+        <Card>
+          <p className="text-gray-500 text-center py-8">
+            {isTeamAdmin ? 'No events yet. Create your first event!' : 'Your team has not created any events yet.'}
+          </p>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {events.map((event) => (
@@ -193,7 +212,9 @@ export default function ManageEvents() {
               <p className="text-xs text-gray-400 mb-4">Created {formatDate(event.createdAt)}</p>
 
               <div className="flex flex-wrap gap-2">
-                {!event.isFinalized && (
+                
+                {/* 🛡️ CONDITIONALLY RENDER: Only Admins see management buttons */}
+                {isTeamAdmin && !event.isFinalized && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => openEdit(event)}>
                       <Edit className="h-3.5 w-3.5 mr-1" /> Edit
@@ -201,16 +222,16 @@ export default function ManageEvents() {
                     <Button size="sm" variant="danger" onClick={() => handleDelete(event._id)}>
                       <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
                     </Button>
+                    
                     {PHASE_ORDER.indexOf(event.phase) < PHASE_ORDER.length - 1 && (
                       <Button size="sm" variant="secondary" onClick={() => handlePhaseChange(event._id, event.phase)}>
                         <ArrowRight className="h-3.5 w-3.5 mr-1" /> Next Phase
                       </Button>
                     )}
                     
-                    {/* 🔥 NEW: Report button only shows in post-event phase */}
                     {event.phase === 'post-event' && (
                       <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => openReportModal(event)}>
-                        <FileText className="h-3.5 w-3.5 mr-1" /> Report
+                        <FileText className="h-3.5 w-3.5 mr-1" /> AI Report
                       </Button>
                     )}
 
@@ -221,67 +242,70 @@ export default function ManageEvents() {
                     )}
                   </>
                 )}
+
+                {/* What regular users see if it's finalized */}
                 {event.isFinalized && (
                   <Badge className="bg-green-100 text-green-800">Finalized & Public</Badge>
                 )}
+                
               </div>
             </Card>
           ))}
         </div>
       )}
 
-      {/* Basic Create/Edit Modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Event' : 'Create Event'}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input label="Title" error={errors.title?.message} {...register('title')} />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              rows={4}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              {...register('description')}
-            />
-            {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>}
-          </div>
-          <Input label="Budget (optional)" type="number" error={errors.budget?.message} {...register('budget')} />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button className="cursor-pointer" type="submit">{editing ? 'Update' : 'Create'}</Button>
-          </div>
-        </form>
-      </Modal>
+      {/* 🛡️ MODALS: Only rendered if the user is an admin */}
+      {isTeamAdmin && (
+        <>
+          <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Event' : 'Create Event'}>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Input label="Title" error={errors.title?.message} {...register('title')} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  rows={4}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  {...register('description')}
+                />
+                {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>}
+              </div>
+              <Input label="Budget (optional)" type="number" error={errors.budget?.message} {...register('budget')} />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+                <Button className="cursor-pointer" type="submit">{editing ? 'Update' : 'Create'}</Button>
+              </div>
+            </form>
+          </Modal>
 
-      {/* 🔥 NEW: AI Report Modal */}
-      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Post-Event Report">
-        <div className="space-y-4">
-          <div className="flex justify-between items-center bg-purple-50 p-3 rounded-lg border border-purple-100">
-            <p className="text-sm text-purple-800">
-              Generate a public report using event data and completed tasks.
-            </p>
-            <Button size="sm" onClick={handleGenerateAI} disabled={isGenerating} className="bg-purple-600 hover:bg-purple-700 text-white flex items-center whitespace-nowrap ml-4">
-              {isGenerating ? <Spinner size="sm" className="mr-2 border-white" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              {isGenerating ? 'Generating...' : 'Auto-Generate AI Draft'}
-            </Button>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Public Report Content (Markdown supported)</label>
-            <textarea
-              rows={12}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
-              value={reportText}
-              onChange={(e) => setReportText(e.target.value)}
-              placeholder="Click 'Auto-Generate' above, or type your report here..."
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-            <Button variant="outline" onClick={() => setShowReportModal(false)}>Cancel</Button>
-            <Button onClick={handleSaveReport}>Save Draft</Button>
-          </div>
-        </div>
-      </Modal>
-
+          <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Post-Event Report">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-purple-50 p-3 rounded-lg border border-purple-100">
+                <p className="text-sm text-purple-800">
+                  Generate a public report using event data and completed tasks.
+                </p>
+                <Button size="sm" onClick={handleGenerateAI} disabled={isGenerating} className="bg-purple-600 hover:bg-purple-700 text-white flex items-center whitespace-nowrap ml-4">
+                  {isGenerating ? <Spinner size="sm" className="mr-2 border-white" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  {isGenerating ? 'Generating...' : 'Auto-Generate AI Draft'}
+                </Button>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Public Report Content</label>
+                <textarea
+                  rows={12}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  placeholder="Click 'Auto-Generate' above, or type your report here..."
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <Button variant="outline" onClick={() => setShowReportModal(false)}>Cancel</Button>
+                <Button onClick={handleSaveReport}>Save Draft</Button>
+              </div>
+            </div>
+          </Modal>
+        </>
+      )}
     </div>
   );
 }

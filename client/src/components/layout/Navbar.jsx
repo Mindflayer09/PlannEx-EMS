@@ -26,7 +26,7 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }) {
             {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
           <Link to="/" className="text-xl font-bold text-indigo-600">
-            ClubEvents
+            PlannEx
           </Link>
         </div>
 
@@ -34,7 +34,7 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }) {
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-sm cursor-pointer"
             >
               <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold text-xs">
                 {getInitials(user.name)}
@@ -56,9 +56,9 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }) {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4 " />
                   Logout
                 </button>
               </div>

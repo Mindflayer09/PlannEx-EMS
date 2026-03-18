@@ -7,9 +7,9 @@ const reportSchema = new mongoose.Schema(
       ref: 'Event',
       required: true,
     },
-    club: {
+    team: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Club',
+      ref: 'Team',
       required: true,
     },
     content: {

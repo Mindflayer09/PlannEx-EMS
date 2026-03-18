@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const { TASK_STATUSES, TASK_PRIORITIES, EVENT_PHASES } = require('../utils/constants');
 
-// 🔥 Simplified for better path resolution
 const mediaSchema = new mongoose.Schema({
   url: String,
   fileType: String,
@@ -21,6 +20,10 @@ const taskSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true },
+    
+    // 🚀 NEW: Direct Tenant Isolation
+    team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
+    
     event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -45,8 +48,7 @@ const taskSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// Indexes for performance
+taskSchema.index({ team: 1 });
 taskSchema.index({ event: 1 });
 taskSchema.index({ assignedTo: 1 });
 taskSchema.index({ status: 1 });

@@ -1,12 +1,13 @@
 const Joi = require('joi');
-const { ROLES } = require('../utils/constants');
 
 const registerSchema = Joi.object({
   name: Joi.string().trim().min(2).max(100).required(),
   email: Joi.string().email().lowercase().required(),
   password: Joi.string().min(8).max(128).required(),
-  club: Joi.string().hex().length(24).required(),
-  role: Joi.string().valid(ROLES.ADMIN, ROLES.SUB_ADMIN, ROLES.VOLUNTEER).required(),
+  role: Joi.string().valid('super_admin', 'admin', 'sub-admin', 'volunteer', 'user').optional(),
+  teamId: Joi.string().hex().length(24).optional().allow('', null),
+  team: Joi.string().hex().length(24).optional().allow('', null),
+  club: Joi.string().hex().length(24).optional().allow('', null),
 });
 
 const loginSchema = Joi.object({
@@ -65,7 +66,7 @@ const rejectTaskSchema = Joi.object({
 });
 
 const updateRoleSchema = Joi.object({
-  role: Joi.string().valid('admin', 'sub-admin', 'volunteer').required(),
+  role: Joi.string().valid('super_admin', 'admin', 'user').required(),
 });
 
 module.exports = {

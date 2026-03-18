@@ -1,7 +1,9 @@
 const ROLES = {
-  ADMIN: 'admin',
-  SUB_ADMIN: 'sub-admin',
-  VOLUNTEER: 'volunteer',
+  SUPER_ADMIN: 'super_admin', // Platform Owner
+  ADMIN: 'admin',             // Team / Organization Owner
+  SUB_ADMIN: 'sub-admin',     // Team Manager
+  VOLUNTEER: 'volunteer',     // Standard Team Member
+  USER: 'user'                // Default / Fallback
 };
 
 const EVENT_PHASES = {
@@ -27,14 +29,19 @@ const TASK_PRIORITIES = {
 };
 
 const NOTIFICATION_TYPES = {
+  // Task & Event
   TASK_ASSIGNED: 'task_assigned',
   TASK_SUBMITTED: 'task_submitted',
   TASK_APPROVED: 'task_approved',
   TASK_REJECTED: 'task_rejected',
   PHASE_CHANGED: 'phase_changed',
   EVENT_FINALIZED: 'event_finalized',
+  
+  NEW_USER_APPLIED: 'new_user_applied', 
   USER_APPROVED: 'user_approved',
+  USER_REJECTED: 'user_rejected',       
   USER_DELETED: 'user_deleted', 
+  TEAM_CREATED: 'team_created'         
 };
 
 const NOTIFICATION_STATUSES = {

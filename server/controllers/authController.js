@@ -1,79 +1,74 @@
 const User = require('../models/User');
+const Team = require('../models/Team');
 const { generateToken } = require('../utils/tokenUtils');
-const { ROLES } = require('../utils/constants');
 
+// ==========================================
 // POST /api/auth/register
+// ==========================================
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, club, role } = req.body;
+    // 1. Extract fields. Allow multiple variations of team ID for backward compatibility
+    const { name, email, password, role, teamId, team, club } = req.body;
+    
+    // Normalize the team ID
+    const finalTeamId = teamId || team || club || null;
+    let teamName = "the platform"; // Default name if no team is selected
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({ success: false, message: 'Email already registered' });
+    // 2. Verify the organization exists ONLY IF a teamId was provided
+    if (finalTeamId) {
+      const foundTeam = await Team.findById(finalTeamId);
+      if (!foundTeam) {
+        return res.status(404).json({ success: false, message: 'Organization not found' });
+      }
+      teamName = foundTeam.name; // Safely store the name for the success message
     }
 
-    // Auto approve if admin, else pending
-    const isApproved = role === ROLES.ADMIN;
+    // 3. Check if the email is already registered
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Email already in use' });
+    }
 
+    // 4. Create the user
+    const userRole = role || 'user'; // Use the role from the frontend, default to 'user'
+    
     const user = await User.create({
       name,
       email,
       password,
-      club,
-      role,
-      isApproved: role === ROLES.ADMIN ? true : false,
+      team: finalTeamId, 
+      role: userRole,
+      // Optional: Auto-approve super_admin, require approval for others
+      isApproved: userRole === 'super_admin' ? true : false 
     });
 
+    // 5. Safe Response
     res.status(201).json({
       success: true,
-      message:
-        role === ROLES.ADMIN
-          ? 'Admin registered successfully'
-          : 'Registration successful. Please wait for admin approval.',
-      data: { user },
+      message: userRole === 'super_admin' 
+        ? "Registration successful! Welcome to the Command Center."
+        : `Registration successful! You have applied to join ${teamName}. Please wait for an administrator to approve your account.`
     });
+
   } catch (error) {
-    next(error);
+    // 🚨 HACK: Send the exact Mongoose error straight to the frontend!
+    return res.status(500).json({ 
+      success: false, 
+      message: "Server Crash: " + error.message 
+    });
   }
 };
 
-exports.registerAdmin = async (req, res, next) => {
-  try {
-    const { name, email, password, club } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'Admin already exists with this email',
-      });
-    }
-
-    const admin = await User.create({
-      name,
-      email,
-      password,
-      role: 'admin',
-      club,
-      isApproved: true, // admins are auto-approved
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Admin registered successfully',
-      data: { user: admin },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
+// ==========================================
 // POST /api/auth/login
+// ==========================================
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).select('+password').populate('club', 'name');
+    // 🔄 SaaS Update: populate 'team' instead of 'club'
+    const user = await User.findOne({ email }).select('+password').populate('team', 'name');
+    
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
@@ -83,10 +78,12 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    if (!user.isApproved && user.role !== 'admin') {
+    // Admins and SuperAdmins bypass the approval check
+    const isPlatformAdmin = user.role === 'super_admin' || user.role === 'admin';
+    if (!user.isApproved && !isPlatformAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Your account is pending approval. Please contact admin.',
+        message: 'Your account is pending approval. Please contact your team administrator.',
       });
     }
 
@@ -101,7 +98,7 @@ exports.login = async (req, res, next) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          club: user.club,
+          team: user.team, // 🔄 SaaS Update
           isApproved: user.isApproved,
         },
       },
@@ -111,12 +108,18 @@ exports.login = async (req, res, next) => {
   }
 };
 
+// ==========================================
 // GET /api/auth/me
+// ==========================================
 exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).populate('club', 'name description logo');
-
-    res.json({
+    const user = await User.findById(req.user._id).select('-password').populate('team', 'name');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.status(200).json({
       success: true,
       data: { user },
     });

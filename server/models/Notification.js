@@ -3,8 +3,18 @@ const { NOTIFICATION_TYPES, NOTIFICATION_STATUSES } = require('../utils/constant
 
 const notificationSchema = new mongoose.Schema(
   {
+    team: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Team',
+      required: false, 
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false, 
+    },
     recipient: {
-      type: String,
+      type: String, // Kept as String (email) in case you email external people (non-users)
       required: true,
     },
     subject: {
@@ -43,7 +53,10 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Keep your existing queue indexes
 notificationSchema.index({ status: 1 });
 notificationSchema.index({ status: 1, retryCount: 1 });
+notificationSchema.index({ team: 1, createdAt: -1 }); 
+notificationSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

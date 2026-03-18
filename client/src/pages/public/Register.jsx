@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "../../context/AuthContext";
-import { getClubs } from "../../api/services/club.service";
+import { getAllTeams } from "../../api/services/team.service";
 import toast from "react-hot-toast";
 import Input from "../../components/common/Input";
 import Select from "../../components/common/Select";
@@ -17,7 +17,7 @@ const schema = z
     email: z.string().email("Invalid email address"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(8, "Confirm Password is required"),
-    club: z.string().min(1, "Please select a club"),
+    team: z.string().min(1, "Please select an organization"),
     role: z.enum(["admin", "sub-admin", "volunteer"], {
       required_error: "Please select a role",
     }),
@@ -27,14 +27,14 @@ const schema = z
     path: ["confirmPassword"],
   });
 
-export default function Register({ onSuccess, switchToLogin }) {
-  const { register: registerUser, login, user: currentUser } = useAuth();
+export default function Register({ onSuccess, switchToLogin, preSelectedTeamId = "" }) {
+  // ✅ Added 'login' back so we can perform the direct redirect
+  const { register: registerUser, login, user: currentUser } = useAuth(); 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(false);
-  const [clubs, setClubs] = useState([]);
-
+  const [teams, setTeams] = useState([]);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
 
@@ -46,72 +46,61 @@ export default function Register({ onSuccess, switchToLogin }) {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { club: searchParams.get("club") || "" },
+    defaultValues: { 
+      team: preSelectedTeamId || searchParams.get("team") || "",
+      role: "volunteer" 
+    },
   });
 
   const watchRole = watch("role");
 
-  // Redirect if already logged in
+  useEffect(() => {
+    if (preSelectedTeamId) {
+      setValue("team", preSelectedTeamId);
+    }
+  }, [preSelectedTeamId, setValue]);
+
+  // ✅ Redirect if already logged in (using the central traffic controller)
   useEffect(() => {
     if (currentUser) {
-      const routes = {
-        admin: "/admin/dashboard",
-        "sub-admin": "/subadmin/dashboard",
-        volunteer: "/volunteer/dashboard",
-      };
-      navigate(routes[currentUser.role] || "/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [currentUser, navigate]);
 
-  // Fetch clubs
   useEffect(() => {
-    const fetchClubs = async () => {
+    const fetchTeams = async () => {
       try {
-        const res = await getClubs();
-        setClubs(res);
+        const response = await getAllTeams();
+        const rawTeams = Array.isArray(response) ? response : (response?.teams || response?.data?.teams || []);
+        setTeams(rawTeams);
       } catch (err) {
-        toast.error("Failed to load clubs");
+        toast.error("Failed to load organizations");
       }
     };
-
-    fetchClubs();
+    fetchTeams();
   }, []);
 
-  // Pre-fill club
-  useEffect(() => {
-    const clubParam = searchParams.get("club");
-    if (clubParam) setValue("club", clubParam);
-  }, [searchParams, setValue]);
-
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
     setLoading(true);
-
     try {
-      await registerUser(data);
+      const payload = { ...formData, club: formData.team };
 
-      if (data.role === "admin") {
-        await login(data.email, data.password);
+      // 1. Create the account
+      await registerUser(payload);
 
-        toast.success("Admin registered successfully!");
+      // 2. ✅ AUTO-LOGIN for "Direct Dashboard" experience
+      // This is safe because your authMiddleware will block them if !isApproved
+      await login(formData.email, formData.password);
 
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          navigate("/admin/dashboard", { replace: true });
-        }
-      } else {
-        toast.success(
-          "Registration successful! Wait for admin approval before login."
-        );
-
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          navigate("/login");
-        }
-      }
+      toast.success("Account created! Redirecting to dashboard...");
+      
+      if (onSuccess) onSuccess();
+      
+      // 3. ✅ NAVIGATE to the central redirector
+      navigate("/dashboard", { replace: true });
+      
     } catch (err) {
-      toast.error(err.message || "Registration failed");
+      toast.error(err.response?.data?.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -119,162 +108,100 @@ export default function Register({ onSuccess, switchToLogin }) {
 
   return (
     <div className="w-full max-w-md mx-auto">
-
-      {/* Header */}
       <div className="text-center mb-6">
-
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-2xl font-bold text-indigo-600"
-        >
+        <Link to="/" className="inline-flex items-center gap-2 text-2xl font-bold text-indigo-600">
           <Calendar className="h-7 w-7" />
-          ClubEvents
+          PlannEx
         </Link>
-
-        <h2 className="mt-4 text-2xl font-bold text-gray-900">
-          Create your account
-        </h2>
-
-        <p className="mt-2 text-sm text-gray-500">
+        <h2 className="mt-4 text-2xl font-bold text-gray-900">Create account</h2>
+        <p className="text-sm text-gray-500 mt-2">
           Already have an account?{" "}
-          {switchToLogin ? (
-            <button
-              onClick={switchToLogin}
-              className="text-indigo-600 font-medium hover:underline"
-            >
-              Login
-            </button>
-          ) : (
-            <Link
-              to="/login"
-              className="text-indigo-600 font-medium hover:underline"
-            >
-              Login
-            </Link>
-          )}
+          <button onClick={switchToLogin} className="text-indigo-600 font-semibold hover:underline cursor-pointer">
+            Login
+          </button>
         </p>
-
       </div>
 
-      {/* Form */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-
-          <Input
-            label="Full Name"
-            placeholder="John Doe"
-            error={errors.name?.message}
-            {...register("name")}
+          <Input 
+            label="Full Name" 
+            placeholder="John Doe" 
+            error={errors.name?.message} 
+            {...register("name")} 
+          />
+          
+          <Input 
+            label="Email" 
+            type="email" 
+            placeholder="you@example.com" 
+            error={errors.email?.message} 
+            {...register("email")} 
           />
 
-          <Input
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-            error={errors.email?.message}
-            {...register("email")}
-          />
-
-          {/* Password */}
-          <div className="relative">
-
-            <label className="block text-gray-700 font-medium mb-1">
-              Password
-            </label>
-
-            <input
-              type={passwordVisible ? "text" : "password"}
-              placeholder="Min 8 characters"
-              className={`border rounded px-3 py-2 w-full ${
-                errors.password ? "border-red-500" : "border-gray-300"
-              }`}
-              {...register("password")}
-            />
-
-            <span
-              className="absolute right-3 top-9 cursor-pointer text-gray-500 hover:text-gray-700"
-              onClick={() => setPasswordVisible(!passwordVisible)}
-            >
-              {passwordVisible ? <EyeOff size={20} /> : <Eye size={20} />}
-            </span>
-
-            {errors.password && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.password.message}
-              </p>
-            )}
-
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Input 
+                label="Password" 
+                type={passwordVisible ? "text" : "password"} 
+                error={errors.password?.message} 
+                {...register("password")} 
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-9 text-gray-400 cursor-pointer"
+                onClick={() => setPasswordVisible(!passwordVisible)}
+              >
+                {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <div className="relative flex-1">
+              <Input 
+                label="Confirm" 
+                type={confirmVisible ? "text" : "password"} 
+                error={errors.confirmPassword?.message} 
+                {...register("confirmPassword")} 
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-9 text-gray-400 cursor-pointer"
+                onClick={() => setConfirmVisible(!confirmVisible)}
+              >
+                {confirmVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
-          {/* Confirm Password */}
-          <div className="relative">
-
-            <label className="block text-gray-700 font-medium mb-1">
-              Confirm Password
-            </label>
-
-            <input
-              type={confirmVisible ? "text" : "password"}
-              placeholder="Re-enter password"
-              className={`border rounded px-3 py-2 w-full ${
-                errors.confirmPassword ? "border-red-500" : "border-gray-300"
-              }`}
-              {...register("confirmPassword")}
-            />
-
-            <span
-              className="absolute right-3 top-9 cursor-pointer text-gray-500 hover:text-gray-700"
-              onClick={() => setConfirmVisible(!confirmVisible)}
-            >
-              {confirmVisible ? <EyeOff size={20} /> : <Eye size={20} />}
-            </span>
-
-            {errors.confirmPassword && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.confirmPassword.message}
-              </p>
-            )}
-
-          </div>
-
-          {/* Club */}
           <Select
-            label="Club"
-            placeholder="Select a club"
-            options={clubs.map((c) => ({
-              value: c._id,
-              label: c.name,
-            }))}
-            error={errors.club?.message}
-            {...register("club")}
+            label="Join Organization"
+            disabled={!!preSelectedTeamId}
+            options={teams?.map((t) => ({
+              value: t._id,
+              label: t.name,
+            })) || []}
+            error={errors.team?.message}
+            {...register("team")}
           />
 
-          {/* Role */}
           <Select
-            label="Role"
-            placeholder="Select your role"
+            label="Requested Role"
             options={[
-              { value: "volunteer", label: "Volunteer" },
-              { value: "sub-admin", label: "Sub-Admin" },
-              { value: "admin", label: "Admin" },
+              { value: "volunteer", label: "Volunteer / Member" },
+              { value: "sub-admin", label: "Sub-Admin / Manager" },
+              { value: "admin", label: "Organization Admin" },
             ]}
             error={errors.role?.message}
             {...register("role")}
           />
 
           <Button type="submit" loading={loading} className="w-full">
-            Register
+            Register & Go to Dashboard
           </Button>
 
+          <p className="text-[11px] text-gray-400 text-center italic">
+            Note: You will be able to access workspace features once a platform administrator approves your role.
+          </p>
         </form>
-
-        <p className="mt-4 text-xs text-gray-400 text-center">
-          {watchRole === "admin"
-            ? "Admins can login immediately after registration."
-            : "After registration, an admin will review and approve your account."}
-        </p>
-
       </div>
     </div>
   );

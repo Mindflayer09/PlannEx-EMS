@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const uploadController = require('../controllers/uploadController');
-const authenticate = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const { uploadLimiter } = require('../middleware/rateLimiter');
 
 const upload = multer({

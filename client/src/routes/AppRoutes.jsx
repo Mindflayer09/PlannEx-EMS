@@ -2,37 +2,34 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import RequireRole from '../components/RequireRole';
-import Spinner from '../components/common/Spinner'; // Make sure to import Spinner
+import Spinner from '../components/common/Spinner';
 
 // Public pages
 import Home from '../pages/public/Home';
 import Login from '../pages/public/Login';
 import Register from '../pages/public/Register';
 import PublicReports from '../pages/public/PublicReports';
-import RegisterAdmin from '../pages/public/RegisterAdmin';
 
-// Admin pages
-import AdminDashboard from '../pages/admin/AdminDashboard';
-import ManageUsers from '../pages/admin/ManageUsers';
-import ManageEvents from '../pages/admin/ManageEvents';
-import ManageTasks from '../pages/admin/ManageTasks';
+// Super Admin Pages (Platform Owner)
+import PlatformDashboard from '../pages/superadmin/PlatformDashboard';
+import CreateOrganization from '../pages/superadmin/CreateOrganization';
+import UserManagement from '../pages/superadmin/UserManagement';
 
-// Sub-admin pages
-import SubAdminDashboard from '../pages/subadmin/SubAdminDashboard';
-import MyEvents from '../pages/subadmin/MyEvents';
-import DelegateTasks from '../pages/subadmin/DelegateTasks';
-import ReviewSubmissions from '../pages/subadmin/ReviewSubmissions';
-
-// Volunteer pages
-import VolunteerDashboard from '../pages/volunteer/VolunteerDashboard';
-import MyTasks from '../pages/volunteer/MyTasks';
-import SubmitTask from '../pages/volunteer/SubmitTask';
+// Workspace Pages (Unified Team Dashboard)
+import WorkspaceOverview from '../pages/workspace/WorkspaceOverview';
+import TeamEvents from '../pages/workspace/TeamEvents';
+import TeamTasks from '../pages/workspace/TeamTasks';
+import TeamMembers from '../pages/workspace/TeamMembers';
 
 import NotFound from '../pages/NotFound';
 
+/**
+ * Direct Redirector: The "Brain" of your routing.
+ * When a user hits '/dashboard', this component decides where to send them
+ * based on their specific role.
+ */
 function DashboardRedirect() {
-  const { user, loading } = useAuth(); // Added loading state
+  const { user, loading } = useAuth(); 
 
   if (loading) {
     return (
@@ -42,15 +39,17 @@ function DashboardRedirect() {
     );
   }
 
+  // If not logged in, back to login
   if (!user) return <Navigate to="/login" replace />;
   
-  const routes = {
-    admin: '/admin/dashboard',
-    'sub-admin': '/subadmin/dashboard',
-    volunteer: '/volunteer/dashboard',
-  };
+  // 1. Super Admins go to the Platform Command Center
+  if (user?.role === 'super_admin') {
+    return <Navigate to="/super-admin/dashboard" replace />;
+  }
   
-  return <Navigate to={routes[user.role] || '/'} replace />;
+  // 2. Everyone else (Admin, Sub-Admin, Volunteer) goes to the Team Workspace
+  // Note: Your components (WorkspaceOverview) should handle the "Pending Approval" UI
+  return <Navigate to="/workspace/dashboard" replace />;
 }
 
 export default function AppRoutes() {
@@ -58,43 +57,41 @@ export default function AppRoutes() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public routes */}
+          {/* ========================================== */}
+          {/* PUBLIC ROUTES                              */}
+          {/* ========================================== */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reports" element={<PublicReports />} />
+          
+          {/* The Central Redirect Gate */}
           <Route path="/dashboard" element={<DashboardRedirect />} />
-          <Route path="/register-admin" element={<RegisterAdmin />} />
 
-          {/* Admin routes (Only Admin) */}
-          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          {/* ========================================== */}
+          {/* SUPER ADMIN ROUTES (SaaS Management)       */}
+          {/* ========================================== */}
+          <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>
             <Route element={<DashboardLayout />}>
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<ManageUsers />} />
-              <Route path="/admin/events" element={<ManageEvents />} />
-              <Route path="/admin/tasks" element={<ManageTasks />} />
+              <Route path="/super-admin/dashboard" element={<PlatformDashboard />} />
+              <Route path="/super-admin/organizations/new" element={<CreateOrganization />} />
+              <Route path="/super-admin/users" element={<UserManagement />} />
             </Route>
           </Route>
 
-          {/* Sub-admin routes (Admin & Sub-Admin can access) */}
-          <Route element={<ProtectedRoute allowedRoles={['admin', 'sub-admin']} />}>
-            <Route element={<DashboardLayout />}>
-              <Route path="/subadmin/dashboard" element={<SubAdminDashboard />} />
-              <Route path="/subadmin/events" element={<MyEvents />} />
-              <Route path="/subadmin/tasks" element={<DelegateTasks />} />
-              <Route path="/subadmin/submissions" element={<ReviewSubmissions />} />
-            </Route>
-          </Route>
-
-          {/* Volunteer routes (Admin, Sub-Admin, and Volunteer can access) */}
+          {/* ========================================== */}
+          {/* WORKSPACE ROUTES (Team Admins & Members)   */}
+          {/* ========================================== */}
           <Route element={<ProtectedRoute allowedRoles={['admin', 'sub-admin', 'volunteer']} />}>
             <Route element={<DashboardLayout />}>
-              <Route path="/volunteer/dashboard" element={<VolunteerDashboard />} />
-              <Route path="/volunteer/tasks" element={<MyTasks />} />
-              <Route path="/volunteer/submit/:taskId" element={<SubmitTask />} />
+              <Route path="/workspace/dashboard" element={<WorkspaceOverview />} />
+              <Route path="/workspace/events" element={<TeamEvents />} />
+              <Route path="/workspace/tasks" element={<TeamTasks />} />
+              <Route path="/workspace/members" element={<TeamMembers />} />
             </Route>
           </Route>
 
+          {/* 404 Catch-All */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>

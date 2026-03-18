@@ -1,227 +1,106 @@
 const User = require('../models/User');
-
 const { notifyUserApproved, notifyUserDeleted } = require('../services/notificationService');
+
+// ✅ HELPER: Checks if the requester is the Platform Owner
+const isSuperAdmin = (req) => req.user.role === 'super_admin';
 
 // GET /api/users
 exports.getAllUsers = async (req, res, next) => {
   try {
-    const { isApproved } = req.query;
-
-    const filter = {
-      club: req.user.club, // Only same club users
-    };
-
-    if (isApproved !== undefined) {
-      filter.isApproved = isApproved === 'true';
+    let query = {};
+    if (!isSuperAdmin(req)) {
+      if (!req.user.team) return res.status(403).json({ success: false, message: "No organization associated" });
+      query.team = req.user.team;
     }
 
-    const users = await User.find(filter).populate('club', 'name');
+    const users = await User.find(query)
+      .populate('team', 'name') 
+      .select('-password')
+      .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      data: { users },
-    });
-  } catch (error) {
-    next(error);
-  }
+    res.status(200).json({ success: true, count: users.length, users });
+  } catch (error) { next(error); }
 };
 
 // GET /api/users/:id
 exports.getUserById = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id).populate('club', 'name description logo');
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    const user = await User.findById(req.params.id).populate('team', 'name');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!isSuperAdmin(req) && user.team?.toString() !== req.user.team?.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    res.json({ success: true, data: { user } });
+  } catch (error) { next(error); }
+};
+
+// ✅ ADDED: This fixes the Line 28 crash in your routes!
+exports.updateUser = async (req, res, next) => {
+  try {
+    const { name, email, team } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (!isSuperAdmin(req) && user.team?.toString() !== req.user.team?.toString()) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
     }
 
-    res.json({ success: true, data: { user } });
-  } catch (error) {
-    next(error);
-  }
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (team && isSuperAdmin(req)) user.team = team; // Only Super Admin can change a user's team
+    
+    await user.save();
+    res.json({ success: true, message: 'User updated successfully', data: { user } });
+  } catch (error) { next(error); }
 };
 
 // PATCH /api/users/:id/approve
 exports.approveUser = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).populate('team');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    // Prevent cross-club approval
-    if (user.club.toString() !== req.user.club.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You cannot approve users from another club',
-      });
-    }
-
-    // Prevent approving yourself
-    if (user._id.toString() === req.user._id.toString()) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot approve yourself',
-      });
-    }
+    const canApprove = isSuperAdmin(req) || (user.team?._id.toString() === req.user.team?.toString());
+    if (!canApprove) return res.status(403).json({ success: false, message: 'Permission denied' });
 
     user.isApproved = true;
     await user.save();
 
-    // 🔥 NEW: Trigger approval email
     try {
-      await notifyUserApproved(user);
-    } catch (emailErr) {
-      console.error('Approval email failed to send:', emailErr);
-    }
+      if (typeof notifyUserApproved === 'function') await notifyUserApproved(user);
+    } catch (err) { console.error('Email failed:', err); }
 
-    res.json({
-      success: true,
-      message: 'User approved successfully',
-      data: { user },
-    });
-  } catch (error) {
-    next(error);
-  }
+    res.json({ success: true, message: 'User approved successfully' });
+  } catch (error) { next(error); }
 };
 
-// PATCH /api/users/:id/role
+// ✅ ADDED: This fixes the role update route
 exports.updateRole = async (req, res, next) => {
   try {
     const { role } = req.body;
-
     const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // Prevent cross-club modification
-    if (user.club.toString() !== req.user.club.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You cannot modify users from another club',
-      });
-    }
-
-    // Prevent changing your own role
-    if (user._id.toString() === req.user._id.toString()) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot change your own role',
-      });
-    }
-
-    // Prevent multiple admins per club
-    if (role === 'admin') {
-      const existingAdmin = await User.findOne({
-        club: req.user.club,
-        role: 'admin',
-      });
-
-      if (existingAdmin) {
-        return res.status(400).json({
-          success: false,
-          message: 'This club already has an admin',
-        });
-      }
-    }
-
-    // Optional: Prevent modifying another admin
-    if (user.role === 'admin') {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot change another admin’s role',
-      });
-    }
+    if (!isSuperAdmin(req)) return res.status(403).json({ success: false, message: 'Only Super Admin can change roles' });
 
     user.role = role;
     await user.save();
-
-    res.json({
-      success: true,
-      message: 'Role updated successfully',
-      data: { user },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// PUT /api/users/:id
-exports.updateUser = async (req, res, next) => {
-  try {
-    const { name, email, club } = req.body;
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (club) user.club = club;
-    await user.save();
-
-    res.json({ success: true, data: { user } });
-  } catch (error) {
-    next(error);
-  }
+    res.json({ success: true, message: 'Role updated', data: { user } });
+  } catch (error) { next(error); }
 };
 
 // DELETE /api/users/:id
 exports.deleteUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    // Prevent deleting yourself
-    if (user._id.toString() === req.user._id.toString()) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot delete your own account',
-      });
-    }
-
-    // Prevent cross-club deletion
-    if (user.club.toString() !== req.user.club.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'You cannot delete users from another club',
-      });
-    }
-
-    // Prevent deleting another admin
-    if (user.role === 'admin') {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot delete another admin',
-      });
+    const canDelete = isSuperAdmin(req) || (user.team?.toString() === req.user.team?.toString());
+    if (!canDelete || user._id.toString() === req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Permission denied' });
     }
 
     await User.findByIdAndDelete(req.params.id);
-
-    try {
-      await notifyUserDeleted(user);
-    } catch (emailErr) {
-      console.error('Deletion email failed to send:', emailErr);
-    }
-
-    res.json({
-      success: true,
-      message: 'User deleted successfully',
-    });
-  } catch (error) {
-    next(error);
-  }
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) { next(error); }
 };

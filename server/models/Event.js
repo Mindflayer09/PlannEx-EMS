@@ -23,10 +23,11 @@ const eventSchema = new mongoose.Schema(
       required: [true, 'Event description is required'],
       trim: true,
     },
-    club: {
+    //  Replaced 'club' with 'team' to support the multi-tenant architecture
+    team: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Club',
-      required: [true, 'Club is required'],
+      ref: 'Team', 
+      required: [true, 'Team/Organization is required'],
     },
     phase: {
       type: String,
@@ -51,7 +52,7 @@ const eventSchema = new mongoose.Schema(
     reportStatus: {
       type: String,
       enum: ['none', 'draft', 'published'],
-      default: 'none', // Tracks the review pipeline (report is in Report model)
+      default: 'none', 
     },
     budget: {
       type: Number,
@@ -61,9 +62,10 @@ const eventSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-eventSchema.index({ club: 1 });
+//  Updated index for the new 'team' reference
+eventSchema.index({ team: 1 });
 eventSchema.index({ phase: 1 });
 eventSchema.index({ isPublic: 1 });
-eventSchema.index({ reportStatus: 1 }); // Added index for faster querying of public reports
+eventSchema.index({ reportStatus: 1 }); 
 
 module.exports = mongoose.model('Event', eventSchema);

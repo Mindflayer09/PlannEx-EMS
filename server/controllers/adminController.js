@@ -4,64 +4,58 @@ const Task = require('../models/Task');
 
 exports.getStats = async (req, res, next) => {
   try {
-    const clubId = req.headers['x-club-id'];
-
-    // 🔹 1. Club header required
-    if (!clubId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Club ID is required',
-      });
-    }
-
-    // 🔹 2. Ensure user exists (from authenticate middleware)
+    // 🔹 1. Ensure user exists
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized',
-      });
+      return res.status(401).json({ success: false, message: 'Not authorized' });
     }
 
-    // 🔹 3. Extract user club safely (handles populated & non-populated)
-    const userClubId = req.user.club?._id
-      ? req.user.club._id.toString()
-      : req.user.club?.toString();
+    const isSuperAdmin = req.user.role === 'super_admin';
 
-    if (!userClubId) {
-      return res.status(403).json({
-        success: false,
-        message: 'User has no club assigned',
-      });
+    // 🔹 2. Smart Team ID Extraction
+    // Fallback chain: Check new header -> Check old header -> Just use the user's assigned team
+    const targetTeamId = req.headers['x-team-id'] 
+      || req.headers['x-club-id'] 
+      || (req.user.team ? req.user.team.toString() : null);
+
+    // 🔹 3. Super Admin & Admin Validation
+    if (!isSuperAdmin) {
+      if (!targetTeamId) {
+        return res.status(403).json({ success: false, message: 'User has no organization assigned' });
+      }
+
+      const userTeamId = req.user.team?._id 
+        ? req.user.team._id.toString() 
+        : req.user.team?.toString();
+
+      if (userTeamId !== targetTeamId.toString()) {
+        return res.status(403).json({ success: false, message: 'Access denied to this organization' });
+      }
+
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Admin access only' });
+      }
     }
 
-    // 🔹 4. Ensure user belongs to this club
-    if (userClubId !== clubId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this club',
-      });
-    }
+    // 🔹 4. Build the Query Filter
+    // If it's a Super Admin and they didn't specify a team, fetch stats for the WHOLE platform.
+    // Otherwise, fetch stats just for the specific team.
+    const queryFilter = targetTeamId ? { team: targetTeamId } : {};
 
-    // 🔹 5. Ensure only admin can access
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Admin access only',
-      });
-    }
-
-    // 🔹 6. Get stats
-    const totalUsers = await User.countDocuments({ club: clubId });
+    // 🔹 5. Get Stats (Changed all 'club' references to 'team')
+    const totalUsers = await User.countDocuments(queryFilter);
 
     const pendingApprovals = await User.countDocuments({
-      club: clubId,
+      ...queryFilter,
       isApproved: false,
-      role: { $in: ['sub-admin', 'volunteer'] },
+      // Removed the strict role check here in case you add new roles later, 
+      // it's safer to just count anyone who isn't approved.
     });
 
-    const totalEvents = await Event.countDocuments({ club: clubId });
+    const totalEvents = await Event.countDocuments(queryFilter);
 
-    const totalTasks = await Task.countDocuments({ club: clubId });
+    // Note: Assuming your Task model also references the team directly. 
+    // If Tasks only reference Events, you might need to adjust this.
+    const totalTasks = await Task.countDocuments(queryFilter);
 
     return res.json({
       success: true,

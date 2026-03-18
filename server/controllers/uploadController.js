@@ -33,11 +33,17 @@ exports.uploadFile = async (req, res, next) => {
       resourceType = 'raw';
     }
 
+    // ✅ THE FIX: Dynamic Multi-Tenant Folder Organization
+    // This creates separate folders in Cloudinary for each organization
+    const folderName = req.user?.team 
+      ? `teams/${req.user.team}/events` 
+      : 'platform-general';
+
     // Upload to Cloudinary from buffer
     const result = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'club-events',
+          folder: folderName, // 👈 Updated to use the dynamic folder
           resource_type: resourceType,
         },
         (error, result) => {
