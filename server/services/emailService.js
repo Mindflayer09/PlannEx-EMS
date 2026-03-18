@@ -1,22 +1,22 @@
+const dns = require('node:dns');
 const nodemailer = require("nodemailer");
 const Notification = require('../models/Notification');
 
 let transporter = null;
 const createTransporter = () => {
-  console.log(`📡 SMTP: Forcing IPv4 Lookup for ${process.env.SMTP_USER}...`);
+  console.log(`📡 SMTP: Forcing strict IPv4 lookup...`);
 
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false,
+    secure: false, 
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-    // ✅ FORCE IPv4 AT THE SOCKET LEVEL
-    family: 4, 
     
-    // ✅ FORCE IPv4 AT THE DNS LEVEL (The "Nuclear" Fix)
+    //
+    family: 4,
     lookup: (hostname, options, callback) => {
       dns.lookup(hostname, { family: 4 }, (err, address, family) => {
         callback(err, address, family);
@@ -29,8 +29,8 @@ const createTransporter = () => {
       rejectUnauthorized: false,
       minVersion: "TLSv1.2",
     },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
   });
 };
 
