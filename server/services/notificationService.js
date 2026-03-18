@@ -3,27 +3,28 @@ const User = require('../models/User');
 const { sendWithRetry, templates } = require('./emailService');
 const { NOTIFICATION_TYPES } = require('../utils/constants');
 
-/**
- *  HELPER: Create and Queue Notification
- * Now saves team and user references for strict data isolation and in-app tracking.
- */
 const createAndSendNotification = async (recipient, type, template, relatedEntity, teamId, userId) => {
-  const notification = await Notification.create({
-    recipient,
-    subject: template.subject,
-    body: template.body,
-    type,
-    relatedEntity,
-    team: teamId, 
-    user: userId, 
-  });
-
-  sendWithRetry(notification).catch(console.error);
+  try {
+    const notification = await Notification.create({
+      recipient,
+      subject: template.subject,
+      body: template.body,
+      type,
+      relatedEntity,
+      team: teamId, 
+      user: userId, 
+    });
+    sendWithRetry(notification).catch(err => 
+      console.error(`[Notification Background Error]: ${err.message}`)
+    );
+  } catch (err) {
+    console.error(`[Notification Creation Failed]: ${err.message}`);
+  }
 };
 
 exports.notifyUserApproved = async (user) => {
-  // Pass team name for professional branding
-  const orgName = user.team?.name || 'your organization';
+  // Defensive check for populated team
+  const orgName = (user.team && typeof user.team === 'object') ? user.team.name : 'your organization';
   const template = templates.userApproved(user.name, orgName);
   
   await createAndSendNotification(
@@ -31,13 +32,13 @@ exports.notifyUserApproved = async (user) => {
     NOTIFICATION_TYPES.USER_APPROVED,
     template,
     { entityType: 'User', entityId: user._id },
-    user.team?._id || user.team, // teamId
-    user._id // userId
+    user.team?._id || user.team,
+    user._id 
   );
 };
 
 exports.notifyUserDeleted = async (user) => {
-  const orgName = user.team?.name || 'your organization';
+  const orgName = (user.team && typeof user.team === 'object') ? user.team.name : 'your organization';
   const template = templates.userDeleted(user.name, orgName);
   
   await createAndSendNotification(
@@ -51,13 +52,13 @@ exports.notifyUserDeleted = async (user) => {
 };
 
 exports.notifyTaskAssigned = async (task) => {
-  // Ensure we have the team name for the template
-  const orgName = task.team?.name || 'the organization';
-  
+  const orgName = (task.team && typeof task.team === 'object') ? task.team.name : 'the organization';
+  const assignerName = (task.assignedBy && typeof task.assignedBy === 'object') ? task.assignedBy.name : 'An Admin';
+
   const template = templates.taskAssigned(
     task.title,
     task.deadline,
-    task.assignedBy?.name || 'An Admin',
+    assignerName,
     orgName
   );
 
@@ -67,12 +68,14 @@ exports.notifyTaskAssigned = async (task) => {
     template,
     { entityType: 'Task', entityId: task._id },
     task.team?._id || task.team,
-    task.assignedTo._id
+    task.assignedTo._id || task.assignedTo
   );
 };
 
 exports.notifyTaskSubmitted = async (task) => {
-  const template = templates.taskSubmitted(task.title, task.assignedTo.name);
+  const volunteerName = (task.assignedTo && typeof task.assignedTo === 'object') ? task.assignedTo.name : 'A Volunteer';
+
+  const template = templates.taskSubmitted(task.title, volunteerName);
   
   await createAndSendNotification(
     task.assignedBy.email,
@@ -80,7 +83,7 @@ exports.notifyTaskSubmitted = async (task) => {
     template,
     { entityType: 'Task', entityId: task._id },
     task.team?._id || task.team,
-    task.assignedBy._id
+    task.assignedBy._id || task.assignedBy
   );
 };
 
@@ -93,7 +96,7 @@ exports.notifyTaskApproved = async (task) => {
     template,
     { entityType: 'Task', entityId: task._id },
     task.team?._id || task.team,
-    task.assignedTo._id
+    task.assignedTo._id || task.assignedTo
   );
 };
 
@@ -106,46 +109,37 @@ exports.notifyTaskRejected = async (task) => {
     template,
     { entityType: 'Task', entityId: task._id },
     task.team?._id || task.team,
-    task.assignedTo._id
+    task.assignedTo._id || task.assignedTo
   );
 };
 
-/**
- * 📣 BROADCAST: Phase Changed
- * Swapped 'club' for 'team' to match the new schema.
- */
 exports.notifyPhaseChanged = async (event) => {
-  // Fetch all approved members of THIS specific organization
   const users = await User.find({ team: event.team, isApproved: true });
   const template = templates.phaseChanged(event.title, event.phase);
-
-  for (const user of users) {
-    await createAndSendNotification(
+  await Promise.all(users.map(user => 
+    createAndSendNotification(
       user.email,
       NOTIFICATION_TYPES.PHASE_CHANGED,
       template,
       { entityType: 'Event', entityId: event._id },
-      event.team,
+      event.team?._id || event.team,
       user._id
-    );
-  }
+    )
+  ));
 };
 
-/**
- * 📣 BROADCAST: Event Finalized
- */
 exports.notifyEventFinalized = async (event) => {
   const users = await User.find({ team: event.team, isApproved: true });
   const template = templates.eventFinalized(event.title);
 
-  for (const user of users) {
-    await createAndSendNotification(
+  await Promise.all(users.map(user => 
+    createAndSendNotification(
       user.email,
       NOTIFICATION_TYPES.EVENT_FINALIZED,
       template,
       { entityType: 'Event', entityId: event._id },
-      event.team,
+      event.team?._id || event.team,
       user._id
-    );
-  }
+    )
+  ));
 };
