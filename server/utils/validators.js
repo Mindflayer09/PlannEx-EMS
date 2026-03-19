@@ -8,6 +8,7 @@ const registerSchema = Joi.object({
   teamId: Joi.string().hex().length(24).optional().allow('', null),
   team: Joi.string().hex().length(24).optional().allow('', null),
   club: Joi.string().hex().length(24).optional().allow('', null),
+  otp: Joi.string().length(6).required()
 });
 
 const loginSchema = Joi.object({

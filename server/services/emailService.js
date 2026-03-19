@@ -1,5 +1,3 @@
-// using Twilio SendGrid's v3 Node.js Library
-// https://github.com/sendgrid/sendgrid-nodejs
 const sgMail = require('@sendgrid/mail');
 const Notification = require('../models/Notification');
 
@@ -147,6 +145,18 @@ const templates = {
       <p style="font-size: 16px;">The event <strong>${eventTitle}</strong> has moved to the <span style="color: #4f46e5; font-weight: bold;">${newPhase}</span> phase.</p>
     `),
   }),
+
+  verificationCode: (code) => ({
+  subject: `${code} is your PlannEx verification code`,
+  body: emailWrapper(`
+    <h2 style="color: #111827; margin-bottom: 16px;">Authentication Code</h2>
+    <p style="font-size: 16px;">Your verification code for PlannEx is:</p>
+    <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 25px 0;">
+      <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #4f46e5;">${code}</span>
+    </div>
+    <p style="font-size: 14px; color: #6b7280;">This code will expire in 5 minutes. If you didn't request this, please ignore this email.</p>
+  `),
+}),
 
   eventFinalized: (eventTitle) => ({
     subject: `✨ Success! ${eventTitle} is Finalized`,
