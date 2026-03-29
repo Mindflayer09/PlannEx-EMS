@@ -10,9 +10,6 @@ exports.getStats = async (req, res, next) => {
     }
 
     const isSuperAdmin = req.user.role === 'super_admin';
-
-    // 🔹 2. Smart Team ID Extraction
-    // Fallback chain: Check new header -> Check old header -> Just use the user's assigned team
     const targetTeamId = req.headers['x-team-id'] 
       || req.headers['x-club-id'] 
       || (req.user.team ? req.user.team.toString() : null);
@@ -36,25 +33,15 @@ exports.getStats = async (req, res, next) => {
       }
     }
 
-    // 🔹 4. Build the Query Filter
-    // If it's a Super Admin and they didn't specify a team, fetch stats for the WHOLE platform.
-    // Otherwise, fetch stats just for the specific team.
     const queryFilter = targetTeamId ? { team: targetTeamId } : {};
-
-    // 🔹 5. Get Stats (Changed all 'club' references to 'team')
     const totalUsers = await User.countDocuments(queryFilter);
 
     const pendingApprovals = await User.countDocuments({
       ...queryFilter,
       isApproved: false,
-      // Removed the strict role check here in case you add new roles later, 
-      // it's safer to just count anyone who isn't approved.
     });
 
     const totalEvents = await Event.countDocuments(queryFilter);
-
-    // Note: Assuming your Task model also references the team directly. 
-    // If Tasks only reference Events, you might need to adjust this.
     const totalTasks = await Task.countDocuments(queryFilter);
 
     return res.json({

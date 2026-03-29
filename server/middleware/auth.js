@@ -17,9 +17,6 @@ const authenticate = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ success: false, message: 'User no longer exists' });
     }
-
-    // 🛡️ THE GATEKEEPER LOGIC
-    // 1. Super Admins bypass all checks
     if (user.role === 'super_admin') {
       req.user = user;
       return next();

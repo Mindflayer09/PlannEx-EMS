@@ -28,9 +28,6 @@ export default function Login({ onSuccess, switchToRegister }) {
   } = useForm({
     resolver: zodResolver(schema),
   });
-
-  // ✅ IMPROVED: Redirect to the central "Traffic Controller" route
-  // This lets AppRoutes.jsx decide exactly which dashboard to show based on role
   const handleCentralRedirect = () => {
     navigate('/dashboard', { replace: true });
   };
@@ -56,7 +53,6 @@ export default function Login({ onSuccess, switchToRegister }) {
       handleCentralRedirect();
 
     } catch (err) {
-      // Handles "Account not approved" or "Invalid credentials" from backend
       toast.error(err.response?.data?.message || err.message || 'Login failed');
     } finally {
       setLoading(false);
