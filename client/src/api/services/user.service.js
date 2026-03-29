@@ -3,7 +3,6 @@ import api from '../axios';
 export const getAllUsers = async (params = {}) => {
   try {
     const response = await api.get('/users', { params });
-    console.log("RAW AXIOS RESPONSE:", response);
     return response.data || response; 
   } catch (error) {
     console.error("User Service Error (getAllUsers):", error.response?.data || error.message);
