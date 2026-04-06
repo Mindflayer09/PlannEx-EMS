@@ -1,26 +1,27 @@
 import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 
-const GoogleAuthButton = ({ actionText = "Continue with Google" }) => {
+// 🚀 Added 'onGoogleSuccess' prop here
+const GoogleAuthButton = ({ actionText = "Continue with Google", onGoogleSuccess }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       setError('');
       try {
-        // 🚀 Send the token to your backend, NOT the user info
+        // Send the token to your backend
         const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/google`, {
           token: tokenResponse.access_token,
         });
 
-        // Store token and redirect
-        localStorage.setItem('token', res.data.data.token);
-        navigate('/dashboard');
+        // 🚀 THE FIX: Pass the data back to Register.jsx and STOP.
+        // No navigating, no local storage saving. Just trigger Step 2!
+        if (onGoogleSuccess) {
+          onGoogleSuccess(res.data.data);
+        }
       } catch (err) {
         setError(err.response?.data?.message || 'Google Authentication failed');
       } finally {
@@ -38,7 +39,7 @@ const GoogleAuthButton = ({ actionText = "Continue with Google" }) => {
         </p>
       )}
 
-      {/* The "Or" Divider - Fixed for Light Theme */}
+      {/* The "Or" Divider */}
       <div className="flex items-center my-6">
         <div className="grow border-t border-gray-300"></div>
         <span className="px-4 text-gray-400 text-xs font-bold bg-white">OR</span>

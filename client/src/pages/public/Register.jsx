@@ -41,7 +41,6 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
 
-  // Fallback to localhost if env isn't set, then strip trailing slash safely
   const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const API_URL = rawApiUrl.replace(/\/$/, ""); 
 
@@ -87,12 +86,11 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
   }, []);
 
   // ==========================================
-  // STEP 1: Validate Form & Request OTP
+  // STEP 1: Validate Form & Request OTP (Manual)
   // ==========================================
   const onRequestOtp = async (data) => {
     setLoading(true);
     try {
-      console.log("Calling URL:", `${API_URL}/auth/send-otp`);
       const response = await fetch(`${API_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -113,6 +111,30 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
   };
 
   // ==========================================
+  // STEP 1.5: Handle Google Success Hand-off
+  // ==========================================
+  const handleGoogleSuccess = (googleData) => {
+    // Basic check to ensure they selected a team before using Google
+    if (!formData.team) {
+      toast.error("Please select an Organization first!");
+      return;
+    }
+
+    // Auto-fill the React Hook Form invisibly
+    if (googleData?.email) setValue("email", googleData.email);
+    if (googleData?.name) setValue("name", googleData.name);
+    
+    // Set dummy passwords to satisfy Zod schema requirements
+    const dummyPass = "GoogleAuth_Shared_Secret_123!";
+    setValue("password", dummyPass);
+    setValue("confirmPassword", dummyPass);
+
+    // Switch to OTP screen immediately!
+    toast.success("Google linked! Check your email for the verification code.");
+    setStep(2);
+  };
+
+  // ==========================================
   // STEP 2: Verify OTP & Create Account
   // ==========================================
   const onVerifyOtp = async (e) => {
@@ -130,7 +152,6 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
         otp: otp
       };
 
-      // ✅ Now pointing exactly to /register/verify
       const response = await fetch(`${API_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,7 +194,7 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
               </button>
             </>
           ) : (
-            `We sent a 6-digit code to ${formData.email}`
+            `We sent a 6-digit code to ${formData.email || "your email"}`
           )}
         </p>
       </div>
@@ -259,7 +280,10 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
               Send Verification Code
             </Button>
           </form>
-          <GoogleAuthButton actionText="Continue with Google" />
+          <GoogleAuthButton 
+            actionText="Continue with Google" 
+            onGoogleSuccess={handleGoogleSuccess} 
+          />
           </>
         )}
 

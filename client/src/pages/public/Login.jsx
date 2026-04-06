@@ -29,6 +29,7 @@ export default function Login({ onSuccess, switchToRegister }) {
   } = useForm({
     resolver: zodResolver(schema),
   });
+
   const handleCentralRedirect = () => {
     navigate('/dashboard', { replace: true });
   };
@@ -40,6 +41,9 @@ export default function Login({ onSuccess, switchToRegister }) {
     }
   }, [currentUser]);
 
+  // ==========================================
+  // Manual Email/Password Login
+  // ==========================================
   const onSubmit = async (data) => {
     setLoading(true);
     try {
@@ -57,6 +61,28 @@ export default function Login({ onSuccess, switchToRegister }) {
       toast.error(err.response?.data?.message || err.message || 'Login failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ==========================================
+  // Google Login Hand-off
+  // ==========================================
+  const handleGoogleSuccess = (googleData) => {
+    if (googleData && googleData.token) {
+      // 1. Save the token exactly like your old Google button did
+      localStorage.setItem('token', googleData.token);
+      
+      toast.success('Welcome back!');
+      
+      if (onSuccess) {
+        onSuccess(); 
+      }
+
+      // 2. We use window.location here instead of navigate() to force a hard reload. 
+      // This guarantees your AuthContext re-runs its initialization and sees the new token!
+      window.location.href = '/dashboard';
+    } else {
+      toast.error('Google login failed: No valid session found.');
     }
   };
 
@@ -119,7 +145,10 @@ export default function Login({ onSuccess, switchToRegister }) {
             Sign In
           </Button>
         </form>
-        <GoogleAuthButton actionText="Continue with Google" />
+        <GoogleAuthButton 
+          actionText="Continue with Google" 
+          onGoogleSuccess={handleGoogleSuccess} 
+        />
       </div>
     </div>
   );
