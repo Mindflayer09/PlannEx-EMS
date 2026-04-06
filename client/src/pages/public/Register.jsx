@@ -10,6 +10,7 @@ import Input from "../../components/common/Input";
 import Select from "../../components/common/Select";
 import Button from "../../components/common/Button";
 import { Calendar, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 const schema = z
   .object({
@@ -181,6 +182,7 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
         
         {/* ==================== STEP 1: USER DETAILS FORM ==================== */}
         {step === 1 && (
+          <>
           <form onSubmit={handleSubmit(onRequestOtp)} className="space-y-4">
             <Input 
               label="Full Name" 
@@ -257,6 +259,8 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
               Send Verification Code
             </Button>
           </form>
+          <GoogleAuthButton actionText="Continue with Google" />
+          </>
         )}
 
         {/* ==================== STEP 2: OTP VERIFICATION FORM ==================== */}

@@ -9,6 +9,8 @@ import Home from '../pages/public/Home';
 import Login from '../pages/public/Login';
 import Register from '../pages/public/Register';
 import PublicReports from '../pages/public/PublicReports';
+import ForgotPassword from '../pages/public/ForgotPassword';
+import ResetPassword from '../pages/public/ResetPassword';
 
 // Super Admin Pages (Platform Owner)
 import PlatformDashboard from '../pages/superadmin/PlatformDashboard';
@@ -64,6 +66,8 @@ export default function AppRoutes() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reports" element={<PublicReports />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           
           {/* The Central Redirect Gate */}
           <Route path="/dashboard" element={<DashboardRedirect />} />

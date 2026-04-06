@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import { Calendar, Eye, EyeOff } from 'lucide-react';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -118,6 +119,7 @@ export default function Login({ onSuccess, switchToRegister }) {
             Sign In
           </Button>
         </form>
+        <GoogleAuthButton actionText="Continue with Google" />
       </div>
     </div>
   );

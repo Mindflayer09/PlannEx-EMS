@@ -3,6 +3,10 @@ const Team = require('../models/Team');
 const OTP = require('../models/Otp');
 const { generateToken } = require('../utils/tokenUtils');
 const { sendEmail, templates } = require('../services/emailService');
+const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
+const axios = require('axios');
 
 // ==========================================
 // REGISTRATION STEP 1: Request OTP
@@ -137,10 +141,6 @@ exports.login = async (req, res, next) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
-
-    // 🚀 UPDATED: isPlatformAdmin now includes 'sub-admin' 
-    // This allows them to bypass the "isApproved" lock if they are internal staff,
-    // or you can keep them locked until a Super Admin approves them.
     const privilegedRoles = ['super_admin', 'admin', 'sub-admin'];
     const isStaff = privilegedRoles.includes(user.role);
 
@@ -183,5 +183,137 @@ exports.getMe = async (req, res, next) => {
     res.status(200).json({ success: true, data: { user } });
   } catch (error) {
     next(error);
+  }
+};
+
+// ==========================================
+// FORGOT PASSWORD
+// ==========================================
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'There is no user with that email address.' });
+    }
+
+    // 1. Generate random token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    // 2. Save token and set expiration to 1 hour (3600000 ms)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000;
+    
+    // Use { validateBeforeSave: false } just in case your schema enforces other rules we aren't fulfilling here
+    await user.save({ validateBeforeSave: false }); 
+
+    // 3. Create the reset URL (ensure your frontend URL is accurate here or via .env)
+    const frontendURL = process.env.CLIENT_URL || 'http://localhost:5173';
+    const resetUrl = `${frontendURL}/reset-password/${resetToken}`;
+
+    // 4. Send the email using your existing emailService
+    const subject = 'Password Reset Request - Event Management System';
+    const body = `
+      <h3>Password Reset Request</h3>
+      <p>You requested a password reset. Please click the link below to set a new password:</p>
+      <a href="${resetUrl}" target="_blank">${resetUrl}</a>
+      <p>If you did not request this, please ignore this email. This link will expire in 1 hour.</p>
+    `;
+
+    await sendEmail(user.email, subject, body);
+
+    res.status(200).json({ success: true, message: 'Password reset link sent to your email.' });
+  } catch (error) {
+    // If anything fails (like email sending), wipe the token off the user so they can try again
+    if (req.body.email) {
+      const user = await User.findOne({ email: req.body.email });
+      if (user) {
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+      }
+    }
+    next(error);
+  }
+};
+
+// ==========================================
+// RESET PASSWORD
+// ==========================================
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ success: false, message: 'New password is required.' });
+    }
+
+    // 1. Find user by token and ensure it hasn't expired
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Password reset token is invalid or has expired.' });
+    }
+
+    // 2. Set the new password. (The pre-save hook in your User model will automatically hash this!)
+    user.password = newPassword;
+
+    // 3. Clear the reset token fields so the link cannot be used again
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password successfully updated. You may now log in.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==========================================
+// GOOGLE AUTH: Verify Google & Send OTP
+// ==========================================
+exports.googleAuth = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ success: false, message: "Google token is required" });
+    }
+
+    // 1. Verify token with Google
+    const googleResponse = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${token}`);
+    const { email, name } = googleResponse.data;
+    const existingUser = await User.findOne({ email });
+
+    // 3. Generate OTP (Same logic as your requestRegistrationOTP)
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    await OTP.deleteMany({ email }); 
+    await OTP.create({ email, otp: otpCode });
+  
+    // 4. Send the Email
+    const template = templates.verificationCode(otpCode);
+    await sendEmail(email, template.subject, template.body);
+
+    // 5. Return Google info to frontend
+    // We send back name and email so the frontend can use them in Step 2
+    res.status(200).json({ 
+      success: true, 
+      message: 'Google identity verified. Verification code sent to your email.',
+      data: {
+        email,
+        name,
+        isExistingUser: !!existingUser
+      }
+    });
+
+  } catch (error) {
+    res.status(401).json({ success: false, message: 'Google authentication failed.' });
   }
 };

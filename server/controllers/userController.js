@@ -4,12 +4,19 @@ const { notifyUserApproved, notifyUserDeleted } = require('../services/notificat
 
 const isSuperAdmin = (req) => req.user.role === 'super_admin';
 
+// 🛠️ NEW HELPER: Safely extracts string ID whether the team is populated or not
+const getTeamId = (teamData) => {
+  if (!teamData) return null;
+  return teamData._id ? teamData._id.toString() : teamData.toString();
+};
+
 exports.getAllUsers = async (req, res, next) => {
   try {
     let query = {};
     if (!isSuperAdmin(req)) {
-      if (!req.user.team) return res.status(403).json({ success: false, message: "No organization associated" });
-      query.team = req.user.team;
+      const requesterTeamId = getTeamId(req.user.team);
+      if (!requesterTeamId) return res.status(403).json({ success: false, message: "No organization associated" });
+      query.team = requesterTeamId;
     }
 
     const users = await User.find(query)
@@ -25,9 +32,12 @@ exports.getUserById = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id).populate('team', 'name');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    if (!isSuperAdmin(req) && user.team?.toString() !== req.user.team?.toString()) {
+    
+    // ✅ FIX: Safe ID extraction
+    if (!isSuperAdmin(req) && getTeamId(user.team) !== getTeamId(req.user.team)) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
+    
     res.json({ success: true, data: { user } });
   } catch (error) { next(error); }
 };
@@ -38,7 +48,8 @@ exports.updateUser = async (req, res, next) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    if (!isSuperAdmin(req) && user.team?.toString() !== req.user.team?.toString()) {
+    // ✅ FIX: Safe ID extraction
+    if (!isSuperAdmin(req) && getTeamId(user.team) !== getTeamId(req.user.team)) {
       return res.status(403).json({ success: false, message: 'Permission denied' });
     }
 
@@ -57,7 +68,11 @@ exports.approveUser = async (req, res, next) => {
     const user = await User.findById(req.params.id).populate('team');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const canApprove = isSuperAdmin(req) || (user.team?._id.toString() === req.user.team?.toString());
+    // ✅ FIX: Compare exact string IDs
+    const targetTeamId = getTeamId(user.team);
+    const requesterTeamId = getTeamId(req.user.team);
+
+    const canApprove = isSuperAdmin(req) || (targetTeamId === requesterTeamId && targetTeamId !== null);
     if (!canApprove) return res.status(403).json({ success: false, message: 'Permission denied' });
 
     user.isApproved = true;
@@ -108,7 +123,6 @@ exports.deleteUser = async (req, res, next) => {
     const targetPower = rolePower[targetUser.role] || 0;
 
     // 🛡️ SECURITY CHECK 1: Hierarchy Rule
-    // You can ONLY delete someone if your power is strictly GREATER than theirs
     if (requesterPower <= targetPower) {
       return res.status(403).json({ 
         success: false, 
@@ -117,8 +131,11 @@ exports.deleteUser = async (req, res, next) => {
     }
 
     // 🛡️ SECURITY CHECK 2: Team Isolation
-    // Only Super Admins can delete across different teams
-    const isSameTeam = targetUser.team?._id.toString() === requester.team?.toString();
+    // ✅ FIX: Compare exact string IDs
+    const targetTeamId = getTeamId(targetUser.team);
+    const requesterTeamId = getTeamId(requester.team);
+    
+    const isSameTeam = targetTeamId === requesterTeamId;
     if (requester.role !== 'super_admin' && !isSameTeam) {
       return res.status(403).json({ success: false, message: 'Access denied: User belongs to another organization' });
     }

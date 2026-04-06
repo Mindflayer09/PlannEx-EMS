@@ -53,7 +53,7 @@ router.put(
 
 router.patch(
   '/:id/role', 
-  authorizeRoles('super_admin'), 
+  authorizeRoles('super_admin'),
   validate(updateRoleSchema), 
   userController.updateRole
 );
