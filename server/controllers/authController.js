@@ -290,9 +290,25 @@ exports.googleAuth = async (req, res, next) => {
     // 1. Verify token with Google
     const googleResponse = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${token}`);
     const { email, name } = googleResponse.data;
+    
+    // 2. Check if the user already exists in the database
     const existingUser = await User.findOne({ email });
 
-    // 3. Generate OTP (Same logic as your requestRegistrationOTP)
+    if (existingUser) {
+      const jwtToken = jwt.sign({ id: existingUser._id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE || '30d'
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Google login successful",
+        data: { 
+          token: jwtToken, 
+          user: existingUser 
+        } 
+      });
+    }
+    // 3. Generate OTP
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     await OTP.deleteMany({ email }); 
     await OTP.create({ email, otp: otpCode });
@@ -301,19 +317,19 @@ exports.googleAuth = async (req, res, next) => {
     const template = templates.verificationCode(otpCode);
     await sendEmail(email, template.subject, template.body);
 
-    // 5. Return Google info to frontend
-    // We send back name and email so the frontend can use them in Step 2
-    res.status(200).json({ 
+    // 5. Return Google info to frontend (Frontend moves to Step 2)
+    return res.status(200).json({ 
       success: true, 
       message: 'Google identity verified. Verification code sent to your email.',
       data: {
         email,
         name,
-        isExistingUser: !!existingUser
+        isExistingUser: false
       }
     });
 
   } catch (error) {
+    console.error("Google Auth Error:", error);
     res.status(401).json({ success: false, message: 'Google authentication failed.' });
   }
 };
