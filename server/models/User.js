@@ -26,20 +26,30 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
-    // App-level role (e.g., SUPER_ADMIN for you, USER for everyone else)
-    role: {
+    // 🚀 PLATFORM ROLE: For you (e.g., SUPER_ADMIN to see all orgs)
+    platformRole: {
       type: String,
-      enum: Object.values(ROLES),
-      default: ROLES.USER, // Changed from VOLUNTEER to a more general term if you updated your constants
+      enum: ['SUPER_ADMIN', 'USER'],
+      default: 'USER',
     },
 
-    // 🚀 Replaced 'club' with 'team'
+    // 🚀 TEAM ROLE: Sent from Register.jsx ("admin", "sub-admin", "volunteer")
+    // Note: If you have these in your ROLES constant, you can use Object.values(ROLES) here
+    role: {
+      type: String,
+      enum: ["admin", "sub-admin", "volunteer"],
+      default: "volunteer", 
+    },
+
+    // Link to their organization
     team: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Team', 
       required: [false],
     },
 
+    // 🚀 THE MAGIC TRIGGER: This defaults to false, keeping them locked
+    // in the blurred pending screen until you click "Approve" in your dashboard.
     isApproved: {
       type: Boolean,
       default: false,
@@ -62,6 +72,8 @@ const userSchema = new mongoose.Schema(
 // Indexes for faster querying
 userSchema.index({ team: 1 });
 userSchema.index({ isApproved: 1 });
+
+// Hash password before saving
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) {
     return; 
@@ -70,10 +82,12 @@ userSchema.pre('save', async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
+// Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
+// Remove password from JSON responses globally
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;

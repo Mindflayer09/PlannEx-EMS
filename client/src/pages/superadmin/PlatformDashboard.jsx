@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 import { getAllTeams, updateTeamStatus } from '../../api/services/team.service'; 
-// ✅ Added deleteUser to imports
 import { getAllUsers, approveUser, deleteUser } from '../../api/services/user.service';
 import { getAllEvents } from '../../api/services/event.service'; 
 
@@ -19,13 +18,16 @@ import {
   UserCheck,
   ChevronRight,
   ShieldAlert,
-  Trash2 // ✅ Added Trash icon
+  Trash2,
+  Hourglass, // ✅ Added for pending modal
+  LogOut // ✅ Added for pending modal
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function PlatformDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  // ✅ Extract logout to give pending users a way out
+  const { user, logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('organizations');
@@ -40,6 +42,9 @@ export default function PlatformDashboard() {
     pendingCount: 0,
     activeEvents: 0, 
   });
+
+  // 🚀 Logic to determine if current logged-in user is locked out
+  const isApprovalPending = user && user.isApproved === false;
 
   const fetchPlatformData = async () => {
     setLoading(true);
@@ -77,8 +82,13 @@ export default function PlatformDashboard() {
   };
 
   useEffect(() => {
-    fetchPlatformData();
-  }, []);
+    // Only fetch heavy platform data if the user is actually approved
+    if (!isApprovalPending) {
+      fetchPlatformData();
+    } else {
+      setLoading(false); // Stop loader if they are just pending
+    }
+  }, [isApprovalPending]);
 
   const handleApproveUser = async (userId) => {
     try {
@@ -90,7 +100,6 @@ export default function PlatformDashboard() {
     }
   };
 
-  // ✅ NEW: Handle User Deletion
   const handleDeleteUser = async (userId, userName) => {
     if (!window.confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) return;
     
@@ -243,7 +252,6 @@ export default function PlatformDashboard() {
                         <td className="px-6 py-4 text-gray-600">{u.team?.name || 'Platform Admin'}</td>
                         <td className="px-6 py-4"><Badge variant="outline" className="uppercase text-[10px]">{u.role}</Badge></td>
                         <td className="px-6 py-4 text-right">
-                          {/* ✅ Only show delete button for OTHER users, not yourself */}
                           {u._id !== user?._id && (
                             <button 
                               onClick={() => handleDeleteUser(u._id, u.name)}
@@ -321,53 +329,96 @@ export default function PlatformDashboard() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] bg-gray-50/50">
+    <div className="relative min-h-[calc(100vh-4rem)] bg-gray-50/50">
       
-      <aside className="w-full md:w-80 p-4 sm:p-6 border-r border-gray-200 bg-white flex flex-col gap-4 ">
-        <div className="mb-2 ">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Command Center</h1>
-          <p className="text-sm text-gray-500 mt-1">Select a module to manage.</p>
+      {/* ========================================== */}
+      {/* FULL SCREEN PENDING APPROVAL MODAL OVERLAY */}
+      {/* ========================================== */}
+      {isApprovalPending && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center animate-in fade-in zoom-in duration-300">
+            
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-100 mb-6">
+              <Hourglass className="h-8 w-8 text-amber-600 animate-pulse" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Approval Pending
+            </h2>
+            
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              Welcome, <span className="font-semibold text-gray-800">{user?.name}</span>! Your account is verified, but your workspace access is waiting for an administrator's approval.
+            </p>
+
+            <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 mb-8 text-sm text-amber-800 flex gap-3 text-left">
+              <ShieldAlert className="h-5 w-5 shrink-0" />
+              <p>You will receive an email notification or gain access here once the team accepts your request.</p>
+            </div>
+
+            <button
+              onClick={logout}
+              className="inline-flex items-center justify-center gap-2 text-gray-500 hover:text-gray-900 font-medium transition-colors w-full p-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out for now
+            </button>
+          </div>
         </div>
+      )}
 
-        <div className="flex flex-col gap-3">
-          {sidebarCards.map((card) => {
-            const Icon = card.icon;
-            const isActive = activeTab === card.id;
+      {/* ========================================== */}
+      {/* MAIN DASHBOARD (BLURRED IF PENDING)        */}
+      {/* ========================================== */}
+      <div className={`flex flex-col md:flex-row min-h-full transition-all duration-300 ${
+        isApprovalPending ? 'pointer-events-none blur-md select-none overflow-hidden h-[calc(100vh-4rem)] opacity-40' : ''
+      }`}>
+        
+        <aside className="w-full md:w-80 p-4 sm:p-6 border-r border-gray-200 bg-white flex flex-col gap-4">
+          <div className="mb-2">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Command Center</h1>
+            <p className="text-sm text-gray-500 mt-1">Select a module to manage.</p>
+          </div>
 
-            return (
-              <button
-                key={card.id}
-                onClick={() => setActiveTab(card.id)}
-                className={`w-full text-left transition-all duration-200 rounded-xl border-2 p-4 flex items-center justify-between group cursor-pointer
-                  ${isActive 
-                    ? `border-indigo-600 shadow-md ${card.bg}` 
-                    : 'border-transparent bg-gray-50 hover:bg-gray-100 hover:border-gray-200'
-                  }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-lg ${card.bg} ${card.color} ${isActive ? 'bg-white shadow-sm' : ''}`}>
-                    <Icon size={20} />
+          <div className="flex flex-col gap-3">
+            {sidebarCards.map((card) => {
+              const Icon = card.icon;
+              const isActive = activeTab === card.id;
+
+              return (
+                <button
+                  key={card.id}
+                  onClick={() => setActiveTab(card.id)}
+                  className={`w-full text-left transition-all duration-200 rounded-xl border-2 p-4 flex items-center justify-between group cursor-pointer
+                    ${isActive 
+                      ? `border-indigo-600 shadow-md ${card.bg}` 
+                      : 'border-transparent bg-gray-50 hover:bg-gray-100 hover:border-gray-200'
+                    }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2 rounded-lg ${card.bg} ${card.color} ${isActive ? 'bg-white shadow-sm' : ''}`}>
+                      <Icon size={20} />
+                    </div>
+                    <div>
+                      <p className={`text-sm font-semibold ${isActive ? 'text-gray-900' : 'text-gray-600'}`}>
+                        {card.label}
+                      </p>
+                      <p className={`text-xl font-bold mt-0.5 ${isActive ? card.color : 'text-gray-900'}`}>
+                        {card.value}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-sm font-semibold ${isActive ? 'text-gray-900' : 'text-gray-600'}`}>
-                      {card.label}
-                    </p>
-                    <p className={`text-xl font-bold mt-0.5 ${isActive ? card.color : 'text-gray-900'}`}>
-                      {card.value}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className={`transition-transform ${isActive ? 'text-indigo-600 translate-x-1' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`} size={20} />
-              </button>
-            )
-          })}
-        </div>
-      </aside>
+                  <ChevronRight className={`transition-transform ${isActive ? 'text-indigo-600 translate-x-1' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`} size={20} />
+                </button>
+              )
+            })}
+          </div>
+        </aside>
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-gray-50">
-        {renderContent()}
-      </main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-gray-50">
+          {renderContent()}
+        </main>
 
+      </div>
     </div>
   );
 }

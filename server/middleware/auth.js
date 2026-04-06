@@ -17,7 +17,7 @@ const authenticate = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ success: false, message: 'User no longer exists' });
     }
-    if (user.role === 'super_admin') {
+    if (user.platformRole === 'SUPER_ADMIN') {
       req.user = user;
       return next();
     }
