@@ -5,6 +5,7 @@ const Team = require('../models/Team');
 const { PHASE_ORDER, EVENT_PHASES, TASK_PRIORITIES, TASK_STATUSES } = require('../utils/constants');
 const { notifyPhaseChanged, notifyEventFinalized } = require('../services/notificationService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { generateWithRetry } = require('../services/aiService');
 
 // ==========================================
 //  🛡️ HELPER: Verify Management Access 
@@ -414,16 +415,9 @@ exports.generateEventReport = async (req, res, next) => {
       }
     `;
 
-    // 3. Initialize AI
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    // 🚀 FIXED: Removed the generationConfig that was causing the 404 crash
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash"
-    });
-
-    // 4. Generate Content
-    const result = await model.generateContent(prompt);
+    // 3 & 4. Generate Content using the Retry Service
+    // 🚀 FIXED: Calling the helper function instead of initializing Gemini directly
+    const result = await generateWithRetry(prompt);
     
     // 5. Fault-Tolerant JSON Parsing
     let generatedJSON;
