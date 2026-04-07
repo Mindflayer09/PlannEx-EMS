@@ -19,14 +19,14 @@ import {
   ChevronRight,
   ShieldAlert,
   Trash2,
-  Hourglass, // ✅ Added for pending modal
-  LogOut // ✅ Added for pending modal
+  Hourglass, 
+  LogOut,
+  Shield // Added for Super Admin card
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function PlatformDashboard() {
   const navigate = useNavigate();
-  // ✅ Extract logout to give pending users a way out
   const { user, logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,6 @@ export default function PlatformDashboard() {
     activeEvents: 0, 
   });
 
-  // 🚀 Logic to determine if current logged-in user is locked out
   const isApprovalPending = user && user.isApproved === false;
 
   const fetchPlatformData = async () => {
@@ -82,11 +81,10 @@ export default function PlatformDashboard() {
   };
 
   useEffect(() => {
-    // Only fetch heavy platform data if the user is actually approved
     if (!isApprovalPending) {
       fetchPlatformData();
     } else {
-      setLoading(false); // Stop loader if they are just pending
+      setLoading(false); 
     }
   }, [isApprovalPending]);
 
@@ -228,45 +226,142 @@ export default function PlatformDashboard() {
         );
 
       case 'users':
+        // 🚀 NEW GROUPING LOGIC INJECTED HERE
+        const superAdmins = approvedUsers.filter(u => u.role.toLowerCase() === 'super_admin');
+        const regularUsers = approvedUsers.filter(u => u.role.toLowerCase() !== 'super_admin');
+
+        const usersByOrganization = regularUsers.reduce((groups, u) => {
+          const orgName = u.team?.name || 'Unassigned Platform Users';
+          if (!groups[orgName]) groups[orgName] = [];
+          groups[orgName].push(u);
+          return groups;
+        }, {});
+
         return (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
               <Users className="text-blue-500" /> Approved Platform Users
             </h2>
-            <Card className="p-0 overflow-hidden">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-6 py-4">Name</th>
-                      <th className="px-6 py-4">Email</th>
-                      <th className="px-6 py-4">Organization</th>
-                      <th className="px-6 py-4">Role</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {approvedUsers.map(u => (
-                      <tr key={u._id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 font-medium text-gray-900">{u.name}</td>
-                        <td className="px-6 py-4 text-gray-500">{u.email}</td>
-                        <td className="px-6 py-4 text-gray-600">{u.team?.name || 'Platform Admin'}</td>
-                        <td className="px-6 py-4"><Badge variant="outline" className="uppercase text-[10px]">{u.role}</Badge></td>
-                        <td className="px-6 py-4 text-right">
-                          {u._id !== user?._id && (
-                            <button 
-                              onClick={() => handleDeleteUser(u._id, u.name)}
-                              className="p-2 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-                              title="Delete Admin"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            
+            {approvedUsers.length === 0 ? (
+              <Card className="p-8 text-center text-gray-500 border-dashed">
+                No approved users found.
               </Card>
+            ) : (
+              <div className="space-y-10">
+                
+                {/* 1. SUPER ADMINS CARD */}
+                {superAdmins.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900 flex items-center mb-4">
+                      <Shield className="h-5 w-5 text-indigo-600 mr-2" />
+                      Platform Administrators
+                    </h3>
+                    <Card className="p-0 border-indigo-100 shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-indigo-50/50 text-indigo-900 border-b border-indigo-100">
+                            <tr>
+                              <th className="px-6 py-4 font-bold">Name</th>
+                              <th className="px-6 py-4 font-bold">Email</th>
+                              <th className="px-6 py-4 font-bold">Role</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {superAdmins.map(admin => (
+                              <tr key={admin._id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-6 py-4 font-bold text-gray-900">{admin.name}</td>
+                                <td className="px-6 py-4 text-gray-500">{admin.email}</td>
+                                <td className="px-6 py-4">
+                                  <Badge className="bg-indigo-100 text-indigo-700 uppercase text-[10px] tracking-wider font-bold">
+                                    {admin.role.replace('_', ' ')}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* 2. ORGANIZATION CARDS */}
+                <div>
+                  <h3 className="text-lg font-black text-gray-900 flex items-center mb-4">
+                    <Building2 className="h-5 w-5 text-gray-400 mr-2" />
+                    Hosted Organizations
+                  </h3>
+                  
+                  <div className="space-y-6">
+                    {Object.keys(usersByOrganization).length === 0 ? (
+                      <p className="text-gray-500 italic text-sm">No standard organizations found.</p>
+                    ) : (
+                      Object.entries(usersByOrganization).map(([orgName, members]) => (
+                        <Card key={orgName} className="p-0 overflow-hidden border border-gray-200">
+                          
+                          {/* Card Header */}
+                          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <h4 className="font-extrabold text-gray-900 text-base">{orgName}</h4>
+                            <Badge variant="outline" className="text-gray-500 bg-white">
+                              {members.length} {members.length === 1 ? 'Member' : 'Members'}
+                            </Badge>
+                          </div>
+
+                          {/* Card Body */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                              <thead className="text-gray-400 border-b border-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 font-semibold w-1/3">Name</th>
+                                  <th className="px-6 py-3 font-semibold w-1/3">Email</th>
+                                  <th className="px-6 py-3 font-semibold">Role</th>
+                                  <th className="px-6 py-3 font-semibold text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {members.map(member => (
+                                  <tr key={member._id} className="hover:bg-gray-50 transition-colors group">
+                                    <td className="px-6 py-4 font-semibold text-gray-800">{member.name}</td>
+                                    <td className="px-6 py-4 text-gray-500">{member.email}</td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center gap-2">
+                                        <Badge 
+                                          variant="outline" 
+                                          className={`uppercase text-[10px] tracking-wider ${
+                                            member.role === 'admin' ? 'border-amber-200 text-amber-700 bg-amber-50' :
+                                            member.role === 'sub-admin' ? 'border-emerald-200 text-emerald-700 bg-emerald-50' :
+                                            'border-gray-200 text-gray-600 bg-gray-50'
+                                          }`}
+                                        >
+                                          {member.role.replace('-', ' ')}
+                                        </Badge>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                      {member._id !== user?._id && (
+                                        <button 
+                                          onClick={() => handleDeleteUser(member._id, member.name)} 
+                                          className="text-gray-400 hover:text-rose-600 transition-colors p-2 rounded-lg hover:bg-rose-50 cursor-pointer"
+                                          title="Remove User"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            )}
           </div>
         );
 
