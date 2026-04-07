@@ -57,7 +57,7 @@ export default function PublicReports() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="text-xl font-bold text-indigo-600 flex items-center gap-2">
             <Calendar className="h-6 w-6" />
-            ClubEvents
+            PlannEx
           </Link>
           <Link to="/login" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">
             Login
