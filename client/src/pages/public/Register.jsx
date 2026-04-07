@@ -35,6 +35,7 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
 
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState("");
+  const [pendingUser, setPendingUser] = useState(null);
   
   const [loading, setLoading] = useState(false);
   const [teams, setTeams] = useState([]);
@@ -98,8 +99,8 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
       });
 
       const result = await response.json();
-
       if (!response.ok) throw new Error(result.message || "Failed to request code");
+      setPendingUser(data);
 
       toast.success("Verification code sent to your email!");
       setStep(2); 
@@ -120,16 +121,18 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
       return;
     }
 
-    // Auto-fill the React Hook Form invisibly
-    if (googleData?.email) setValue("email", googleData.email);
-    if (googleData?.name) setValue("name", googleData.name);
-    
-    // Set dummy passwords to satisfy Zod schema requirements
-    const dummyPass = "GoogleAuth_Shared_Secret_123!";
-    setValue("password", dummyPass);
-    setValue("confirmPassword", dummyPass);
+    // 🚀 THE FIX: Look inside the nested 'data' object!
+    const actualData = googleData.data || googleData;
 
-    // Switch to OTP screen immediately!
+    // Build the user object and save it safely!
+    setPendingUser({
+      name: actualData.name,
+      email: actualData.email,
+      password: "GoogleAuth_Shared_Secret_123!",
+      team: formData.team,
+      role: formData.role
+    });
+
     toast.success("Google linked! Check your email for the verification code.");
     setStep(2);
   };
@@ -144,11 +147,11 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
     setLoading(true);
     try {
       const payload = {
-        email: formData.email,
-        name: formData.name,
-        password: formData.password,
-        teamId: formData.team, 
-        role: formData.role,
+        email: pendingUser.email,
+        name: pendingUser.name,
+        password: pendingUser.password,
+        teamId: pendingUser.team, 
+        role: pendingUser.role,
         otp: otp
       };
 
@@ -162,11 +165,15 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
 
       if (!response.ok) throw new Error(result.message || "Invalid verification code");
 
-      toast.success("Account created and verified!");
-      await login(formData.email, formData.password);
-
-      if (onSuccess) onSuccess();
-      navigate("/dashboard", { replace: true });
+      toast.success(result.message || "Account created and verified!");
+      if (result.data && result.data.token) {
+        localStorage.setItem('token', result.data.token);
+        if (onSuccess) onSuccess();
+        window.location.href = "/dashboard";
+      } else {
+        // Fallback just in case
+        switchToLogin();
+      }
 
     } catch (err) {
       toast.error(err.message || "Verification failed. Invalid or expired code.");

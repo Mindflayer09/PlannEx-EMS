@@ -1,22 +1,28 @@
 const sgMail = require('@sendgrid/mail');
 const Notification = require('../models/Notification');
 
-// Initialize SendGrid with your API Key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-// sgMail.setDataResidency('eu'); // Uncomment if you are sending mail using a regional EU subuser
+// ==========================================
+// 1. INITIALIZATION & FAILSAFES
+// ==========================================
+if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+  console.warn("⚠️  WARNING: SendGrid API Key or Verified Sender is missing in .env!");
+} else {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  // sgMail.setDataResidency('eu'); // Uncomment if using EU region
+}
 
-/**
- * 📧 Core Email Dispatcher (SendGrid Integration)
- */
+// ==========================================
+// 2. CORE EMAIL DISPATCHER
+// ==========================================
 const sendEmail = async (to, subject, html) => {
   const msg = {
-    to: to, // Recipient
+    to: to, 
     from: {
       name: 'PlannEx Platform',
-      email: process.env.SENDGRID_VERIFIED_SENDER // 🚨 MUST match your verified sender in SendGrid
+      email: process.env.SENDGRID_VERIFIED_SENDER // 🚨 MUST match SendGrid dashboard
     },
     subject: subject,
-    html: html, // Your professional HTML wrapper
+    html: html, 
   };
 
   try {
@@ -24,14 +30,20 @@ const sendEmail = async (to, subject, html) => {
     console.log(`✅ SendGrid: Email sent to ${to} (Status: ${response[0].statusCode})`);
     return true;
   } catch (error) {
-    console.error(`❌ SendGrid Error for ${to}:`, error.response ? error.response.body : error);
+    console.error(`❌ SendGrid Failed for ${to}`);
+    // Dig out the exact SendGrid API error message
+    if (error.response && error.response.body && error.response.body.errors) {
+      console.error("Reason:", error.response.body.errors[0].message);
+    } else {
+      console.error("Error:", error.message);
+    }
     throw error;
   }
 };
 
-/**
- * 🔄 Queue & Retry Logic
- */
+// ==========================================
+// 3. QUEUE & RETRY LOGIC (Database Backed)
+// ==========================================
 const sendWithRetry = async (notification, maxRetries = 3) => {
   if (notification.status === 'sent') return;
 
@@ -44,8 +56,11 @@ const sendWithRetry = async (notification, maxRetries = 3) => {
     await notification.save();
   } catch (error) {
     notification.retryCount += 1;
-    // Extract the exact SendGrid error message if available
-    notification.error = error.response ? JSON.stringify(error.response.body) : error.message;
+    
+    // Safely store the error text for the database
+    notification.error = error.response && error.response.body 
+      ? JSON.stringify(error.response.body.errors) 
+      : error.message;
     
     // Status stays 'pending' until maxRetries is hit
     notification.status = notification.retryCount >= maxRetries ? 'failed' : 'pending';
@@ -55,9 +70,9 @@ const sendWithRetry = async (notification, maxRetries = 3) => {
   }
 };
 
-/**
- * 🎨 Professional HTML Email Wrapper 
- */
+// ==========================================
+// 4. HTML WRAPPER & TEMPLATES
+// ==========================================
 const emailWrapper = (content) => `
   <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
     <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
@@ -73,9 +88,6 @@ const emailWrapper = (content) => `
   </div>
 `;
 
-/**
- * 📧 Multi-Tenant Email Templates
- */
 const templates = {
   userApproved: (userName, orgName = 'your organization') => ({
     subject: `✔ Account Approved - Welcome to ${orgName}`,
@@ -147,16 +159,16 @@ const templates = {
   }),
 
   verificationCode: (code) => ({
-  subject: `${code} is your PlannEx verification code`,
-  body: emailWrapper(`
-    <h2 style="color: #111827; margin-bottom: 16px;">Authentication Code</h2>
-    <p style="font-size: 16px;">Your verification code for PlannEx is:</p>
-    <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 25px 0;">
-      <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #4f46e5;">${code}</span>
-    </div>
-    <p style="font-size: 14px; color: #6b7280;">This code will expire in 5 minutes. If you didn't request this, please ignore this email.</p>
-  `),
-}),
+    subject: `${code} is your PlannEx verification code`,
+    body: emailWrapper(`
+      <h2 style="color: #111827; margin-bottom: 16px;">Authentication Code</h2>
+      <p style="font-size: 16px;">Your verification code for PlannEx is:</p>
+      <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 25px 0;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #4f46e5;">${code}</span>
+      </div>
+      <p style="font-size: 14px; color: #6b7280;">This code will expire in 5 minutes. If you didn't request this, please ignore this email.</p>
+    `),
+  }),
 
   eventFinalized: (eventTitle) => ({
     subject: `✨ Success! ${eventTitle} is Finalized`,

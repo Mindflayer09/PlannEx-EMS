@@ -290,13 +290,13 @@ exports.googleAuth = async (req, res, next) => {
 
     // 1. Verify token with Google
     const googleResponse = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${token}`);
-    const { email, name } = googleResponse.data;
+    const email = googleResponse.data.email.toLowerCase();
+    const name = googleResponse.data.name;
     
     // 2. Check if user exists AND populate team (matches standard login behavior)
     const existingUser = await User.findOne({ email }).populate('team', 'name');
 
     if (existingUser) {
-      // 🚀 THE FIX: Use your standard token generator!
       const jwtToken = generateToken(existingUser);
 
       return res.status(200).json({
@@ -311,6 +311,7 @@ exports.googleAuth = async (req, res, next) => {
 
     // 3. REGISTRATION FLOW: Generate OTP for new user
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`\n📧 DEV MODE: OTP for ${email} is -> [ ${otpCode} ]\n`);
     await OTP.deleteMany({ email }); 
     await OTP.create({ email, otp: otpCode });
   

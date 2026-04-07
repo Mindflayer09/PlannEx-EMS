@@ -1,19 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const teamController = require('../controllers/teamController');
-
-// Import your auth middleware (adjust the path if necessary)
-const { authenticate } = require('../middleware/auth'); 
-const { authorizeRoles } = require('../middleware/auth'); 
+const { authenticate, requireApproval, authorizeRoles } = require('../middleware/auth'); 
 const { ROLES } = require('../utils/constants');
+
+// ==========================================
+// PUBLIC ROUTES
+// ==========================================
 router.get('/', teamController.getAllTeams);
 router.get('/:id', teamController.getTeamById);
+
+// ==========================================
+// PROTECTED ROUTES (Platform Management)
+// ==========================================
 router.use(authenticate);
 
-// 2. Require the user to be a SUPER_ADMIN
+// 2. Check VIP Status (Must not be pending)
+router.use(requireApproval);
+
+// 3. Strictly restrict to Super Admins only
 router.use(authorizeRoles(ROLES.SUPER_ADMIN)); 
 
-// 3. The new management endpoints
+// --- Management Endpoints ---
 router.post('/', teamController.createTeam);
 router.post('/:id/members', teamController.addTeamMember);
 router.patch('/:id/status', teamController.updateTeamStatus);
