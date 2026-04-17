@@ -17,3 +17,6 @@ export const createTeam = (teamData) => api.post('/teams', teamData);
 
 // Update team status (Approve/Reject - Super Admin)
 export const updateTeamStatus = (id, status) => api.patch(`/teams/${id}/status`, { status });
+
+// PERMANENTLY DELETE a team - Super Admin
+export const deleteTeam = (id) => api.delete(`/teams/${id}`);

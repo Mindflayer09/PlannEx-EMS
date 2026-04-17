@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-import { getAllTeams, updateTeamStatus } from '../../api/services/team.service'; 
+import { getAllTeams, deleteTeam } from '../../api/services/team.service'; 
 import { getAllUsers, approveUser, deleteUser } from '../../api/services/user.service';
 import { getAllEvents } from '../../api/services/event.service'; 
 
@@ -110,16 +110,16 @@ export default function PlatformDashboard() {
     }
   };
 
-  const handleToggleStatus = async (teamId, currentStatus) => {
-    const newStatus = currentStatus === 'active' ? 'archived' : 'active';
-    if (!window.confirm(`Are you sure you want to change status to ${newStatus}?`)) return;
+  // 🚀 NEW LOGIC: Permanent Deletion Function
+  const handleDeleteOrg = async (teamId, orgName) => {
+    if (!window.confirm(`CRITICAL: Are you sure you want to permanently delete "${orgName}"? This cannot be undone.`)) return;
 
     try {
-      await updateTeamStatus(teamId, { status: newStatus });
-      toast.success(`Organization ${newStatus} successfully`);
+      await deleteTeam(teamId); 
+      toast.success("Organization deleted successfully");
       fetchPlatformData(); 
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Update failed');
+      toast.error(error.response?.data?.message || 'Failed to delete organization');
     }
   };
 
@@ -168,8 +168,14 @@ export default function PlatformDashboard() {
                           <Badge variant={org.status === 'active' ? 'success' : 'warning'}>{org.status}</Badge>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <Button className="cursor-pointer" size="sm" variant="outline" onClick={() => handleToggleStatus(org._id, org.status)}>
-                            {org.status === 'active' ? 'Archive' : 'Restore'}
+                          {/* 🚀 NEW UI: Destructive Delete Button */}
+                          <Button 
+                            className="cursor-pointer bg-white text-rose-600 border-rose-200 hover:bg-rose-50" 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleDeleteOrg(org._id, org.name)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2 inline" /> Delete
                           </Button>
                         </td>
                       </tr>
@@ -226,7 +232,6 @@ export default function PlatformDashboard() {
         );
 
       case 'users':
-        // 🚀 NEW GROUPING LOGIC INJECTED HERE
         const superAdmins = approvedUsers.filter(u => u.role.toLowerCase() === 'super_admin');
         const regularUsers = approvedUsers.filter(u => u.role.toLowerCase() !== 'super_admin');
 
@@ -250,7 +255,6 @@ export default function PlatformDashboard() {
             ) : (
               <div className="space-y-10">
                 
-                {/* 1. SUPER ADMINS CARD */}
                 {superAdmins.length > 0 && (
                   <div>
                     <h3 className="text-lg font-black text-gray-900 flex items-center mb-4">
@@ -286,7 +290,6 @@ export default function PlatformDashboard() {
                   </div>
                 )}
 
-                {/* 2. ORGANIZATION CARDS */}
                 <div>
                   <h3 className="text-lg font-black text-gray-900 flex items-center mb-4">
                     <Building2 className="h-5 w-5 text-gray-400 mr-2" />
@@ -300,7 +303,6 @@ export default function PlatformDashboard() {
                       Object.entries(usersByOrganization).map(([orgName, members]) => (
                         <Card key={orgName} className="p-0 overflow-hidden border border-gray-200">
                           
-                          {/* Card Header */}
                           <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                             <h4 className="font-extrabold text-gray-900 text-base">{orgName}</h4>
                             <Badge variant="outline" className="text-gray-500 bg-white">
@@ -308,7 +310,6 @@ export default function PlatformDashboard() {
                             </Badge>
                           </div>
 
-                          {/* Card Body */}
                           <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
                               <thead className="text-gray-400 border-b border-gray-50">
