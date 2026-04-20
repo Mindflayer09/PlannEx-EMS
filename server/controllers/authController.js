@@ -25,7 +25,10 @@ exports.requestRegistrationOTP = async (req, res, next) => {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     await OTP.deleteMany({ email }); 
     await OTP.create({ email, otp: otpCode });
-  
+
+    // Log OTP to console for debugging
+    console.log(`[OTP DEBUG] Verification code for ${email}: ${otpCode}`);
+
     const template = templates.verificationCode(otpCode);
     await sendEmail(email, template.subject, template.body);
 
@@ -40,63 +43,82 @@ exports.requestRegistrationOTP = async (req, res, next) => {
 // ==========================================
 exports.verifyRegistrationAndCreateUser = async (req, res, next) => {
   try {
-    const { email, otp, name, password, role, teamId, team, club } = req.body;
+    const { email, otp, name, password, role, teamId, team } = req.body;
+
+    console.log(`[VERIFY OTP] Starting verification for email: ${email}`);
 
     const validOTP = await OTP.findOne({ email, otp });
     if (!validOTP) {
       return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
     }
 
+    console.log(`[VERIFY OTP] OTP valid, deleting OTP record`);
     await OTP.deleteOne({ _id: validOTP._id });
 
-    // Organization Validation
-    const finalTeamId = teamId || team || club || null;
-    let teamName = "the platform";
-    
+    // Normalize team payload fields and ignore legacy `club` values.
+    const normalizedTeamId = [teamId, team].find((value) => value && typeof value === 'string' && value.trim() !== '');
+    const finalTeamId = normalizedTeamId || null;
+    let teamName = 'the platform';
+
     if (finalTeamId) {
       const foundTeam = await Team.findById(finalTeamId);
       if (!foundTeam) return res.status(404).json({ success: false, message: 'Organization not found' });
       teamName = foundTeam.name;
     }
 
+    console.log(`[VERIFY OTP] Checking for existing email: ${email}`);
+    const existingEmailUser = await User.findOne({ email });
+    if (existingEmailUser) {
+      console.log(`[VERIFY OTP] Email already exists for: ${email}`);
+      return res.status(409).json({ success: false, message: 'Email already exists. Please login or reset your password.' });
+    }
+    console.log(`[VERIFY OTP] Email check passed, ready to create user`);
+
     // 🚀 ROLE LOGIC: Handle 'sub-admin' correctly
     const userRole = role || 'user';
     
-    // Super Admins are auto-approved. 
-    // In a production app, Admins/Sub-Admins usually wait for Super Admin approval.
+    console.log(`[VERIFY OTP] Creating user with role: ${userRole}, team: ${finalTeamId}`);
     const user = await User.create({
       name,
       email,
-      password, 
-      team: finalTeamId, 
+      password,
+      team: finalTeamId,
       role: userRole,
-      isApproved: userRole === 'super_admin' ? true : false 
+      isApproved: userRole === 'super_admin' ? true : false,
     });
+    console.log(`[VERIFY OTP] User created successfully with ID: ${user._id}`);
 
     // ✅ TWO-WAY LINKING: Update the Team's member array
     if (finalTeamId) {
-      // Determine Team-level access based on App-level role
-      let accessLevel = 'member';
-      let position = 'Member';
+      const team = await Team.findById(finalTeamId);
+      if (team) {
+        const alreadyMember = team.members.some(member => member.user.toString() === user._id.toString());
 
-      if (userRole === 'admin') {
-        accessLevel = 'admin';
-        position = 'Organization Admin';
-      } else if (userRole === 'sub-admin') {
-        accessLevel = 'member'; // They are members in the Team schema, but have 'sub-admin' App Role
-        position = 'Sub-Admin';
-      }
+        if (!alreadyMember) {
+          // Determine Team-level access based on App-level role
+          let accessLevel = 'member';
+          let position = 'Member';
 
-      await Team.findByIdAndUpdate(finalTeamId, {
-        $push: { 
-          members: { 
-            user: user._id, 
-            accessLevel,
-            position,
-            joinedAt: new Date()
-          } 
+          if (userRole === 'admin') {
+            accessLevel = 'admin';
+            position = 'Organization Admin';
+          } else if (userRole === 'sub-admin') {
+            accessLevel = 'member'; // They are members in the Team schema, but have 'sub-admin' App Role
+            position = 'Sub-Admin';
+          }
+
+          await Team.findByIdAndUpdate(finalTeamId, {
+            $push: {
+              members: {
+                user: user._id,
+                accessLevel,
+                position,
+                joinedAt: new Date(),
+              }
+            }
+          });
         }
-      });
+      }
     }
 
     const populatedUser = await User.findById(user._id).populate('team', 'name');
@@ -121,6 +143,11 @@ exports.verifyRegistrationAndCreateUser = async (req, res, next) => {
     });
 
   } catch (error) {
+    console.log(`[VERIFY OTP ERROR] ${error.message}`);
+    console.log(`[VERIFY OTP ERROR CODE] ${error.code}`);
+    if (error.code === 11000) {
+      console.log(`[VERIFY OTP ERROR] Duplicate key fields:`, error.keyValue);
+    }
     next(error);
   }
 };

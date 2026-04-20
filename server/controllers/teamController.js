@@ -1,5 +1,8 @@
 const Team = require('../models/Team'); 
 const User = require('../models/User');
+const Event = require('../models/Event');
+const Task = require('../models/Task');
+const Report = require('../models/Report');
 
 // GET /api/teams
 // Fetches all active teams for the "Discover Organizations" page
@@ -104,6 +107,59 @@ exports.updateTeamStatus = async (req, res, next) => {
     if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
 
     res.json({ success: true, message: `Team marked as ${status}`, data: { team } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateTeam = async (req, res, next) => {
+  try {
+    const { name, description, logo } = req.body;
+
+    const team = await Team.findById(req.params.id);
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+
+    if (name !== undefined) team.name = name;
+    if (description !== undefined) team.description = description;
+    if (logo !== undefined) team.logo = logo;
+
+    await team.save();
+
+    res.json({ success: true, message: 'Team updated successfully', data: { team } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteTeam = async (req, res, next) => {
+  try {
+    const team = await Team.findById(req.params.id);
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+
+    // Delete all pending approval users for this organization
+    await User.deleteMany({ team: team._id, isApproved: false });
+
+    // Unlink approved members from the deleted organization
+    await User.updateMany(
+      { team: team._id, isApproved: true },
+      {
+        $unset: { team: '' },
+        $set: { isApproved: false }
+      }
+    );
+
+    // Clean up related team resources to avoid orphaned documents
+    await Task.deleteMany({ team: team._id });
+    await Event.deleteMany({ team: team._id });
+    await Report.deleteMany({ team: team._id });
+
+    await Team.findByIdAndDelete(team._id);
+
+    res.json({ success: true, message: 'Team deleted successfully' });
   } catch (error) {
     next(error);
   }

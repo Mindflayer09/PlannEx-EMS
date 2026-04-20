@@ -15,6 +15,9 @@ export const getTeamById = (id) => api.get(`/teams/${id}`);
 // Create a new team (Registration flow)
 export const createTeam = (teamData) => api.post('/teams', teamData);
 
+// Update team details after creation
+export const updateTeam = (id, teamData) => api.patch(`/teams/${id}`, teamData);
+
 // Update team status (Approve/Reject - Super Admin)
 export const updateTeamStatus = (id, status) => api.patch(`/teams/${id}/status`, { status });
 

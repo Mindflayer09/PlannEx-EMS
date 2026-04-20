@@ -13,7 +13,11 @@ const errorHandler = (err, req, res, next) => {
   if (err.code === 11000) {
     statusCode = 409;
     const field = Object.keys(err.keyValue)[0];
-    message = `${field} already exists`;
+    if (field === 'email') {
+      message = 'An account with this email already exists. Please log in or use password reset.';
+    } else {
+      message = `${field} already exists`;
+    }
   }
 
   // Mongoose cast error (invalid ObjectId)

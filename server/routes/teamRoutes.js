@@ -25,5 +25,7 @@ router.use(authorizeRoles(ROLES.SUPER_ADMIN));
 router.post('/', teamController.createTeam);
 router.post('/:id/members', teamController.addTeamMember);
 router.patch('/:id/status', teamController.updateTeamStatus);
+router.patch('/:id', teamController.updateTeam);
+router.delete('/:id', teamController.deleteTeam);
 
 module.exports = router;

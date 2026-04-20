@@ -15,6 +15,7 @@ import {
   Users, 
   Calendar, 
   Plus, 
+  Pencil,
   UserCheck,
   ChevronRight,
   ShieldAlert,
@@ -169,14 +170,24 @@ export default function PlatformDashboard() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           {/* 🚀 NEW UI: Destructive Delete Button */}
-                          <Button 
-                            className="cursor-pointer bg-white dark:bg-slate-800 dark:text-rose-300 text-rose-600 border-rose-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-slate-900" 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleDeleteOrg(org._id, org.name)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2 inline" /> Delete
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              className="cursor-pointer bg-white dark:bg-slate-800 dark:text-sky-300 text-sky-600 border-sky-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-900"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/super-admin/organizations/${org._id}/edit`)}
+                            >
+                              <Pencil className="h-4 w-4 mr-2 inline" /> Edit
+                            </Button>
+                            <Button 
+                              className="cursor-pointer bg-white dark:bg-slate-800 dark:text-rose-300 text-rose-600 border-rose-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-slate-900" 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleDeleteOrg(org._id, org.name)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2 inline" /> Delete
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

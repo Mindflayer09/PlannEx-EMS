@@ -15,6 +15,7 @@ import ResetPassword from '../pages/public/ResetPassword';
 // Super Admin Pages (Platform Owner)
 import PlatformDashboard from '../pages/superadmin/PlatformDashboard';
 import CreateOrganization from '../pages/superadmin/CreateOrganization';
+import EditOrganization from '../pages/superadmin/EditOrganization';
 import UserManagement from '../pages/superadmin/UserManagement';
 
 // Workspace Pages (Unified Team Dashboard)
@@ -81,6 +82,7 @@ export default function AppRoutes() {
                 <Route element={<DashboardLayout />}>
                   <Route path="/super-admin/dashboard" element={<PlatformDashboard />} />
                   <Route path="/super-admin/organizations/new" element={<CreateOrganization />} />
+                  <Route path="/super-admin/organizations/:id/edit" element={<EditOrganization />} />
                   <Route path="/super-admin/users" element={<UserManagement />} />
                 </Route>
               </Route>
