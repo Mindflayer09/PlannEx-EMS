@@ -116,19 +116,33 @@ exports.updateTeam = async (req, res, next) => {
   try {
     const { name, description, logo } = req.body;
 
+    console.log(`[UPDATE TEAM] Attempting to update team ${req.params.id}`);
+    console.log(`[UPDATE TEAM] Data:`, { name, description, logo: logo ? logo.substring(0, 50) + '...' : 'none' });
+
     const team = await Team.findById(req.params.id);
     if (!team) {
       return res.status(404).json({ success: false, message: 'Team not found' });
     }
 
-    if (name !== undefined) team.name = name;
+    // If name is being updated, check for duplicates (excluding current team)
+    if (name !== undefined && name !== team.name) {
+      const existingTeam = await Team.findOne({ name, _id: { $ne: team._id } });
+      if (existingTeam) {
+        return res.status(409).json({ success: false, message: 'Organization name already exists' });
+      }
+      team.name = name;
+    }
+
     if (description !== undefined) team.description = description;
     if (logo !== undefined) team.logo = logo;
 
     await team.save();
 
+    console.log(`[UPDATE TEAM] Team updated successfully`);
     res.json({ success: true, message: 'Team updated successfully', data: { team } });
   } catch (error) {
+    console.error(`[UPDATE TEAM ERROR]`, error.message);
+    console.error(`[UPDATE TEAM ERROR DETAILS]`, error);
     next(error);
   }
 };

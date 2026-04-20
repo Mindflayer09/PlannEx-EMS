@@ -13,6 +13,7 @@ import ThemeToggle from '../../components/common/ThemeToggle';
 export default function Home() {
   const [teams, setTeams] = useState([]); 
   const [loading, setLoading] = useState(true);
+  const [failedLogos, setFailedLogos] = useState(new Set());
 
   const { user, isAuthenticated, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
@@ -56,6 +57,10 @@ export default function Home() {
       setAuthMode("register");
       setShowAuthModal(true);
     }
+  };
+
+  const handleLogoError = (teamId) => {
+    setFailedLogos(prev => new Set(prev).add(teamId));
   };
 
   return (
@@ -145,21 +150,34 @@ export default function Home() {
                 <div
                   key={team._id}
                   onClick={() => handleTeamNavigation(team._id)}
-                  // 🚀 FIX 5: Added dark mode backgrounds, borders, and hovers to the Cards
-                  className="cursor-pointer group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg dark:hover:shadow-gray-900/50 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all duration-200"
+                  className="cursor-pointer group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg dark:hover:shadow-gray-900/50 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all duration-200"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="h-12 w-12 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                      <Building2 className="h-6 w-6" />
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-gray-300 dark:text-gray-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
+                  {/* Logo Section - Full Width at Top */}
+                  <div className="h-32 w-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center overflow-hidden">
+                    {team.logo && !failedLogos.has(team._id) ? (
+                      <img 
+                        src={team.logo} 
+                        alt={team.name} 
+                        className="h-full w-full object-contain p-4"
+                        onError={() => handleLogoError(team._id)}
+                      />
+                    ) : (
+                      <Building2 className="h-16 w-16 text-indigo-600 dark:text-indigo-400" />
+                    )}
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                    {team.name}
-                  </h3>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                    {team.description || "Active organization on EventFlow SaaS."}
-                  </p>
+
+                  {/* Content Section */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex-1">
+                        {team.name}
+                      </h3>
+                      <ArrowRight className="h-5 w-5 text-gray-300 dark:text-gray-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors shrink-0 ml-2" />
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                      {team.description || "Active organization on EventFlow SaaS."}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>

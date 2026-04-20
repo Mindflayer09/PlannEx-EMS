@@ -1,12 +1,14 @@
-const { v2: cloudinary } = require('cloudinary');
-
 const connectCloudinary = () => {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-  console.log('Cloudinary configured');
+  console.log('[CLOUDINARY] Configuration Check:');
+  console.log('[CLOUDINARY] Cloud Name:', process.env.VITE_CLOUDINARY_CLOUD_NAME ? '✅ Set' : '❌ Missing');
+  console.log('[CLOUDINARY] Upload Preset:', process.env.VITE_CLOUDINARY_UPLOAD_PRESET ? '✅ Set' : '❌ Missing');
+  
+  if (!process.env.VITE_CLOUDINARY_CLOUD_NAME || !process.env.VITE_CLOUDINARY_UPLOAD_PRESET) {
+    console.error('[CLOUDINARY ERROR] Missing required environment variables!');
+    console.error('Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in your .env file');
+  } else {
+    console.log('[CLOUDINARY] ✅ Using unsigned upload with preset method');
+  }
 };
 
-module.exports = { cloudinary, connectCloudinary };
+module.exports = { connectCloudinary };

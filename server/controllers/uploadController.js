@@ -1,4 +1,5 @@
-const { cloudinary } = require('../config/cloudinary');
+const FormData = require('form-data');
+const axios = require('axios');
 
 // POST /api/uploads
 exports.uploadFile = async (req, res, next) => {
@@ -6,6 +7,8 @@ exports.uploadFile = async (req, res, next) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
+
+    console.log(`[UPLOAD] Starting file upload: ${req.file.originalname}`);
 
     // Validate file type
     const allowedTypes = [
@@ -25,34 +28,29 @@ exports.uploadFile = async (req, res, next) => {
       });
     }
 
-    // Determine resource type for Cloudinary
-    let resourceType = 'auto';
-    if (req.file.mimetype.startsWith('image/')) {
-      resourceType = 'image';
-    } else {
-      resourceType = 'raw';
-    }
-
-    // ✅ THE FIX: Dynamic Multi-Tenant Folder Organization
-    // This creates separate folders in Cloudinary for each organization
+    // Build folder path for multi-tenant organization
     const folderName = req.user?.team 
-      ? `teams/${req.user.team}/events` 
+      ? `teams/${req.user.team}/uploads` 
       : 'platform-general';
 
-    // Upload to Cloudinary from buffer
-    const result = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: folderName, // 👈 Updated to use the dynamic folder
-          resource_type: resourceType,
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      uploadStream.end(req.file.buffer);
+    console.log(`[UPLOAD] Uploading to folder: ${folderName}`);
+
+    // Create FormData for Cloudinary unsigned upload
+    const form = new FormData();
+    form.append('file', req.file.buffer, req.file.originalname);
+    form.append('upload_preset', process.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+    form.append('folder', folderName);
+
+    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${process.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`;
+    
+    console.log(`[UPLOAD] Cloudinary URL: ${cloudinaryUrl}`);
+
+    const response = await axios.post(cloudinaryUrl, form, {
+      headers: form.getHeaders(),
     });
+
+    const result = response.data;
+    console.log(`[UPLOAD SUCCESS] File uploaded: ${result.secure_url}`);
 
     res.json({
       success: true,
@@ -65,6 +63,10 @@ exports.uploadFile = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error(`[UPLOAD EXCEPTION]`, error.message);
+    if (error.response?.data) {
+      console.error(`[UPLOAD ERROR RESPONSE]`, error.response.data);
+    }
     next(error);
   }
 };
