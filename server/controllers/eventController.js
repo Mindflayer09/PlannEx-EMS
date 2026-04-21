@@ -237,11 +237,30 @@ exports.deleteEvent = async (req, res, next) => {
     const isAdmin = await verifyTeamAdmin(req, event.team);
     if (!isAdmin) return res.status(403).json({ success: false, message: 'Only team administrators can delete events.' });
 
-    await Task.deleteMany({ event: event._id });
+    console.log(`[DELETE EVENT] Deleting event: ${event.title} (${event._id})`);
+    
+    // Delete all associated tasks
+    const tasksDeleted = await Task.deleteMany({ event: event._id });
+    console.log(`[DELETE EVENT] Deleted ${tasksDeleted.deletedCount} associated tasks`);
+    
+    // Delete associated reports
+    const reportsDeleted = await Report.deleteMany({ event: event._id });
+    console.log(`[DELETE EVENT] Deleted ${reportsDeleted.deletedCount} associated reports`);
+    
+    // Delete the event
     await Event.findByIdAndDelete(req.params.id);
+    console.log(`[DELETE EVENT] Event deleted successfully`);
 
-    res.json({ success: true, message: 'Event and associated tasks deleted' });
+    res.json({ 
+      success: true, 
+      message: 'Event, tasks, and reports deleted successfully',
+      data: {
+        tasksDeleted: tasksDeleted.deletedCount,
+        reportsDeleted: reportsDeleted.deletedCount
+      }
+    });
   } catch (error) {
+    console.error(`[DELETE EVENT ERROR]`, error.message);
     next(error);
   }
 };

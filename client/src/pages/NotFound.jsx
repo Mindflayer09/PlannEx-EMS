@@ -16,8 +16,8 @@ export default function NotFound() {
         </div>
         
         <h1 className="text-6xl font-bold text-indigo-600 dark:text-indigo-400">404</h1>
-        <p className="mt-4 text-xl text-gray-900 dark:text-gray-100">Page not found</p>
-        <p className="mt-2 text-gray-500 dark:text-gray-400">The page you're looking for doesn't exist.</p>
+        <p className="mt-4 text-xl text-gray-900 dark:text-white">Page not found</p>
+        <p className="mt-2 text-gray-500 dark:text-gray-300">The page you're looking for doesn't exist.</p>
         <Link
           to="/"
           className="mt-6 inline-block bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors"

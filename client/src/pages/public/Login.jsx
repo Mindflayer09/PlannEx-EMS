@@ -98,8 +98,8 @@ const handleGoogleSuccess = (googleData) => {
           </Link>
           <ThemeToggle />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Sign in to your account</h2>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Sign in to your account</h2>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-300">
           Don't have an account?{" "}
           <button
             onClick={switchToRegister || (() => navigate('/register'))}

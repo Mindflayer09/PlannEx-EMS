@@ -40,20 +40,20 @@ const ForgotPassword = () => {
           <ThemeToggle />
         </div>
         
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">Forgot Password?</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">Forgot Password?</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-300 mb-8 text-center">
           No worries, we'll send you reset instructions.
         </p>
         
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <div className="flex flex-col text-left">
-            <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-white mb-1.5">
               Email Address
             </label>
             <input 
               id="email"
               type="email" 
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="e.g. name@company.com" 
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 

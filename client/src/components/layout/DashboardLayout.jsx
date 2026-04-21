@@ -14,7 +14,7 @@ export default function DashboardLayout() {
 
   return (
     // 🚀 NEW: Added dark mode background/text classes and transition
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-gray-100 transition-colors duration-200 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-white transition-colors duration-200 flex flex-col">
       <Navbar
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         sidebarOpen={sidebarOpen}

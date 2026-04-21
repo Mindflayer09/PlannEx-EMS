@@ -12,7 +12,7 @@ export default function ThemeToggle() {
         className={`p-2 rounded-lg flex items-center justify-center transition-all duration-200 ${
           theme === 'light' 
             ? 'bg-white text-amber-500 shadow-sm dark:bg-gray-700' 
-            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+            : 'text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
         }`}
         title="Light Mode"
       >
@@ -24,7 +24,7 @@ export default function ThemeToggle() {
         className={`p-2 rounded-lg flex items-center justify-center transition-all duration-200 ${
           theme === 'system' 
             ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-700 dark:text-indigo-400' 
-            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+            : 'text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
         }`}
         title="System Preference"
       >
@@ -36,7 +36,7 @@ export default function ThemeToggle() {
         className={`p-2 rounded-lg flex items-center justify-center transition-all duration-200 ${
           theme === 'dark' 
             ? 'bg-white text-indigo-500 shadow-sm dark:bg-gray-700' 
-            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+            : 'text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
         }`}
         title="Dark Mode"
       >

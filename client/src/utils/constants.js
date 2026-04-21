@@ -31,21 +31,35 @@ export const PHASE_LABELS = {
 };
 
 export const STATUS_COLORS = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  submitted: 'bg-blue-100 text-blue-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
+  submitted: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',
+  approved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
+  rejected: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',
 };
 
 export const PHASE_COLORS = {
-  'pre-event': 'bg-blue-100 text-blue-800',
-  'during-event': 'bg-yellow-100 text-yellow-800',
-  'post-event': 'bg-green-100 text-green-800',
+  'pre-event': 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-200',
+  'during-event': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200',
+  'post-event': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
 };
 
 export const PRIORITY_COLORS = {
-  low: 'bg-gray-100 text-gray-800',
-  medium: 'bg-blue-100 text-blue-800',
-  high: 'bg-orange-100 text-orange-800',
-  critical: 'bg-red-100 text-red-800',
+  low: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+  medium: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',
+  high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200',
+  critical: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',
+};
+
+// 🎨 Additional Status Colors for Team Members
+export const APPROVAL_COLORS = {
+  approved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
+  rejected: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200',
+};
+
+// 🎨 Event Status Colors
+export const EVENT_STATUS_COLORS = {
+  finalized: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200',
+  active: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200',
+  archived: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
 };

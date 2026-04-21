@@ -72,10 +72,10 @@ export default function PublicReports() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-10">
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Public Event Reports
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
+          <p className="text-gray-500 dark:text-gray-300 mt-2">
             Official archives and results from finalized club activities.
           </p>
         </div>
@@ -85,9 +85,9 @@ export default function PublicReports() {
             <Spinner size="lg" />
           </div>
         ) : events.length === 0 ? (
-          <div className="text-center py-24 bg-white rounded-3xl border border-gray-100 shadow-sm">
-            <ImageIcon className="h-12 w-12 text-gray-200 mx-auto mb-4" />
-            <p className="text-gray-400 font-medium"> No published reports found.</p>
+          <div className="text-center py-24 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
+            <ImageIcon className="h-12 w-12 text-gray-200 dark:text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-400 dark:text-gray-300 font-medium">No published reports found.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -97,10 +97,10 @@ export default function PublicReports() {
               return (
                 <Card
                   key={event._id}
-                  className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden border-gray-100"
+                  className="group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden border-gray-100 dark:border-slate-700"
                   onClick={() => setSelected(event)}
                 >
-                  <div className="aspect-video w-full overflow-hidden mb-4 rounded-xl bg-gray-100">
+                  <div className="aspect-video w-full overflow-hidden mb-4 rounded-xl bg-gray-100 dark:bg-slate-700">
                     <img
                       src={previewImg}
                       alt={event.title}
@@ -109,16 +109,16 @@ export default function PublicReports() {
                     />
                   </div>
 
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1">
                     {event.title}
                   </h3>
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-6 leading-relaxed">
+                  <p className="text-sm text-gray-500 dark:text-gray-300 line-clamp-2 mb-6 leading-relaxed">
                     {event.description}
                   </p>
 
-                  <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                  <div className="mt-auto pt-4 border-t border-gray-50 dark:border-slate-700 flex items-center justify-between text-[11px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-widest">
                     <div className="flex items-center gap-1.5">
-                      <MapPin className="h-3 w-3 text-indigo-400" />
+                      <MapPin className="h-3 w-3 text-indigo-400 dark:text-indigo-500" />
                       {event.club?.name || "Organization"}
                     </div>
                     <span>{formatDate(event.createdAt)}</span>

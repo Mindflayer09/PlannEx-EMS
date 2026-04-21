@@ -126,9 +126,9 @@ export default function TeamEvents() {
   };
 
   return (
-    <div className="text-gray-900 dark:text-gray-100">
+    <div className="text-gray-900 dark:text-white">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Team Events</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Team Events</h1>
         
         {/* 🛡️ CONDITIONALLY RENDER: Only Admins can create new events */}
         {isTeamAdmin && (
@@ -151,11 +151,11 @@ export default function TeamEvents() {
           {events.map((event) => (
             <Card key={event._id}>
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">{event.title}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-1">{event.title}</h3>
                 <Badge className={PHASE_COLORS[event.phase]}>{PHASE_LABELS[event.phase]}</Badge>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-300 line-clamp-2 mb-3">{event.description}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Created {formatDate(event.createdAt)}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-100 line-clamp-2 mb-3">{event.description}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-400 mb-4">Created {formatDate(event.createdAt)}</p>
 
               <div className="flex flex-wrap gap-2">
                 
@@ -165,9 +165,6 @@ export default function TeamEvents() {
                     <Button size="sm" variant="outline" onClick={() => openEdit(event)}>
                       <Edit className="h-3.5 w-3.5 mr-1" /> Edit
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(event._id)}>
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                    </Button>
                     
                     {PHASE_ORDER.indexOf(event.phase) < PHASE_ORDER.length - 1 && (
                       <Button size="sm" variant="secondary" onClick={() => handlePhaseChange(event._id, event.phase)}>
@@ -175,14 +172,19 @@ export default function TeamEvents() {
                       </Button>
                     )}
 
-                    {/* AI Report button removed from here */}
-
                     {event.phase === 'post-event' && (
                       <Button size="sm" variant="success" onClick={() => handleFinalize(event._id)}>
                         <Lock className="h-3.5 w-3.5 mr-1" /> Finalize
                       </Button>
                     )}
                   </>
+                )}
+
+                {/* Delete Button - Available for both active and finalized events */}
+                {isTeamAdmin && (
+                  <Button size="sm" variant="danger" onClick={() => handleDelete(event._id)}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                  </Button>
                 )}
 
                 {/* What regular users see if it's finalized */}
@@ -205,7 +207,7 @@ export default function TeamEvents() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 rows={4}
-                className="block w-full rounded-lg border border-gray-300 bg-white text-gray-900 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-100 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="block w-full rounded-lg border border-gray-300 bg-white text-gray-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 {...register('description')}
               />
               {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>}

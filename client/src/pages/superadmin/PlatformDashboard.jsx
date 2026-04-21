@@ -125,10 +125,10 @@ export default function PlatformDashboard() {
   };
 
   const sidebarCards = [
-    { id: 'organizations', label: 'Hosted Organizations', value: stats.totalOrgs, icon: Building2, color: 'text-indigo-600', bg: 'bg-indigo-50', darkBg: 'dark:bg-indigo-900/80' },
-    { id: 'pending', label: 'Pending Approvals', value: stats.pendingCount, icon: UserCheck, color: stats.pendingCount > 0 ? 'text-orange-600' : 'text-gray-500', bg: stats.pendingCount > 0 ? 'bg-orange-50' : 'bg-gray-50', darkBg: stats.pendingCount > 0 ? 'dark:bg-orange-900/80' : 'dark:bg-slate-900' },
-    { id: 'users', label: 'Platform Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', darkBg: 'dark:bg-sky-950/80' },
-    { id: 'events', label: 'Platform Events', value: stats.activeEvents, icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-50', darkBg: 'dark:bg-violet-950/80' },
+    { id: 'organizations', label: 'Hosted Organizations', value: stats.totalOrgs, icon: Building2, color: 'text-indigo-600 dark:text-indigo-300', bg: 'bg-indigo-50 dark:bg-indigo-900/30', darkBg: 'dark:bg-indigo-900/30' },
+    { id: 'pending', label: 'Pending Approvals', value: stats.pendingCount, icon: UserCheck, color: stats.pendingCount > 0 ? 'text-orange-600 dark:text-orange-300' : 'text-gray-500 dark:text-gray-300', bg: stats.pendingCount > 0 ? 'bg-orange-50 dark:bg-orange-900/30' : 'bg-gray-50 dark:bg-gray-700/30', darkBg: stats.pendingCount > 0 ? 'dark:bg-orange-900/30' : 'dark:bg-gray-700/30' },
+    { id: 'users', label: 'Platform Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600 dark:text-blue-300', bg: 'bg-blue-50 dark:bg-blue-900/30', darkBg: 'dark:bg-blue-900/30' },
+    { id: 'events', label: 'Platform Events', value: stats.activeEvents, icon: Calendar, color: 'text-purple-600 dark:text-purple-300', bg: 'bg-purple-50 dark:bg-purple-900/30', darkBg: 'dark:bg-purple-900/30' },
   ];
 
   if (loading) return <div className="flex justify-center items-center min-h-[60vh]"><Spinner size="lg" /></div>;
@@ -156,15 +156,15 @@ export default function PlatformDashboard() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
                     <tr>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">Organization</th>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">Status</th>
-                      <th className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">Control</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">Organization</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">Status</th>
+                      <th className="px-6 py-4 text-right text-gray-700 dark:text-white">Control</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {organizations.map((org) => (
                       <tr key={org._id} className="hover:bg-gray-50 dark:hover:bg-slate-900">
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{org.name}</td>
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{org.name}</td>
                         <td className="px-6 py-4">
                           <Badge variant={org.status === 'active' ? 'success' : 'warning'}>{org.status}</Badge>
                         </td>
@@ -206,28 +206,28 @@ export default function PlatformDashboard() {
             </h2>
             {pendingUsers.length === 0 ? (
               <Card className="bg-gray-50 dark:bg-slate-900 border-dashed border-2 border-gray-200 dark:border-slate-700 text-center py-12">
-                <ShieldAlert className="h-10 w-10 text-gray-300 dark:text-gray-500 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400 font-medium">Inbox Zero!</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">No users currently awaiting approval.</p>
+                <ShieldAlert className="h-10 w-10 text-gray-300 dark:text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-300 font-medium">Inbox Zero!</p>
+                <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">No users currently awaiting approval.</p>
               </Card>
             ) : (
               <Card className="p-0 overflow-hidden border-orange-200 dark:border-orange-800">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-orange-50/50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-700">
                     <tr>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">User Details</th>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">Organization</th>
-                      <th className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">Actions</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">User Details</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">Organization</th>
+                      <th className="px-6 py-4 text-right text-gray-700 dark:text-white">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {pendingUsers.map(u => (
                       <tr key={u._id} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/20">
                         <td className="px-6 py-4">
-                          <div className="font-bold text-gray-900 dark:text-gray-100">{u.name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{u.email} • <span className="uppercase font-bold text-indigo-600 dark:text-indigo-300">{u.role}</span></div>
+                          <div className="font-bold text-gray-900 dark:text-white">{u.name}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-300">{u.email} • <span className="uppercase font-bold text-indigo-600 dark:text-indigo-300">{u.role}</span></div>
                         </td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{u.team?.name || 'N/A'}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{u.team?.name || 'N/A'}</td>
                         <td className="px-6 py-4 text-right">
                           <Button size="sm" onClick={() => handleApproveUser(u._id)} className="bg-green-600 hover:bg-green-700 text-white cursor-pointer">
                             Approve User
@@ -260,7 +260,7 @@ export default function PlatformDashboard() {
             </h2>
             
             {approvedUsers.length === 0 ? (
-              <Card className="p-8 text-center text-gray-500 dark:text-gray-400 border-dashed border-gray-200 dark:border-slate-700">
+              <Card className="p-8 text-center text-gray-500 dark:text-gray-300 border-dashed border-gray-200 dark:border-slate-700">
                 No approved users found.
               </Card>
             ) : (
@@ -285,8 +285,8 @@ export default function PlatformDashboard() {
                           <tbody className="divide-y divide-gray-50 dark:divide-slate-700">
                             {superAdmins.map(admin => (
                               <tr key={admin._id} className="hover:bg-gray-50/50 dark:hover:bg-slate-900/70 transition-colors">
-                                <td className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100">{admin.name}</td>
-                                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{admin.email}</td>
+                                <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{admin.name}</td>
+                                <td className="px-6 py-4 text-gray-500 dark:text-gray-300">{admin.email}</td>
                                 <td className="px-6 py-4">
                                   <Badge className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200 uppercase text-[10px] tracking-wider font-bold">
                                     {admin.role.replace('_', ' ')}
@@ -315,14 +315,14 @@ export default function PlatformDashboard() {
                         <Card key={orgName} className="p-0 overflow-hidden border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950">
                           <div className="bg-gray-50 dark:bg-slate-900 px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                             <h4 className="font-extrabold text-gray-900 dark:text-white text-base">{orgName}</h4>
-                            <Badge variant="outline" className="text-gray-500 dark:text-gray-200 bg-white dark:bg-slate-800">
+                            <Badge variant="outline" className="text-gray-500 dark:text-white bg-white dark:bg-slate-800">
                               {members.length} {members.length === 1 ? 'Member' : 'Members'}
                             </Badge>
                           </div>
 
                           <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                              <thead className="text-gray-400 dark:text-gray-300 border-b border-gray-50 dark:border-slate-700">
+                              <thead className="text-gray-400 dark:text-white border-b border-gray-50 dark:border-slate-700">
                                 <tr>
                                   <th className="px-6 py-3 font-semibold w-1/3">Name</th>
                                   <th className="px-6 py-3 font-semibold w-1/3">Email</th>
@@ -333,8 +333,8 @@ export default function PlatformDashboard() {
                               <tbody className="divide-y divide-gray-50 dark:divide-slate-700">
                                 {members.map(member => (
                                   <tr key={member._id} className="hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors group">
-                                    <td className="px-6 py-4 font-semibold text-gray-800 dark:text-gray-100">{member.name}</td>
-                                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{member.email}</td>
+                                    <td className="px-6 py-4 font-semibold text-gray-800 dark:text-white">{member.name}</td>
+                                    <td className="px-6 py-4 text-gray-500 dark:text-gray-300">{member.email}</td>
                                     <td className="px-6 py-4">
                                       <div className="flex items-center gap-2">
                                         <Badge 
@@ -342,7 +342,7 @@ export default function PlatformDashboard() {
                                           className={`uppercase text-[10px] tracking-wider ${
                                             member.role === 'admin' ? 'border-amber-200 text-amber-700 bg-amber-50' :
                                             member.role === 'sub-admin' ? 'border-emerald-200 text-emerald-700 bg-emerald-50' :
-                                            'border-gray-200 text-gray-600 bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:bg-slate-900'
+                                            'border-gray-200 text-gray-600 bg-gray-50 dark:border-slate-700 dark:text-white dark:bg-slate-900'
                                           }`}
                                         >
                                           {member.role.replace('-', ' ')}
@@ -385,29 +385,29 @@ export default function PlatformDashboard() {
             
             {platformEvents.length === 0 ? (
               <Card className="text-center py-12 border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-                <p className="text-gray-500 dark:text-gray-400">No events have been created by any organization yet.</p>
+                <p className="text-gray-500 dark:text-gray-300">No events have been created by any organization yet.</p>
               </Card>
             ) : (
               <Card className="p-0 overflow-hidden border-purple-100 dark:border-purple-700 bg-white dark:bg-slate-900">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-purple-50/50 dark:bg-purple-900/25 border-b border-purple-100 dark:border-purple-700">
                     <tr>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">Event Name</th>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">Organization</th>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">Phase</th>
-                      <th className="px-6 py-4 text-gray-700 dark:text-gray-300">Status</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">Event Name</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">Organization</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">Phase</th>
+                      <th className="px-6 py-4 text-gray-700 dark:text-white">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {platformEvents.map(event => (
                       <tr key={event._id} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/20">
                         <td className="px-6 py-4">
-                          <div className="font-bold text-gray-900 dark:text-gray-100">{event.title}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="font-bold text-gray-900 dark:text-white">{event.title}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-300">
                             {new Date(event.date || event.createdAt).toLocaleDateString()}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-gray-400 font-medium">
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300 font-medium">
                           {event.team?.name || event.club?.name || 'Unknown'}
                         </td>
                         <td className="px-6 py-4">
@@ -435,7 +435,7 @@ export default function PlatformDashboard() {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] bg-gray-50/50 dark:bg-slate-950/90 text-gray-900 dark:text-gray-100">
+    <div className="relative min-h-[calc(100vh-4rem)] bg-gray-50/50 dark:bg-slate-950/90 text-gray-900 dark:text-white">
       
       {/* ========================================== */}
       {/* FULL SCREEN PENDING APPROVAL MODAL OVERLAY */}
@@ -448,12 +448,12 @@ export default function PlatformDashboard() {
               <Hourglass className="h-8 w-8 text-amber-600 animate-pulse" />
             </div>
             
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Approval Pending
             </h2>
             
-            <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
-              Welcome, <span className="font-semibold text-gray-800 dark:text-gray-200">{user?.name}</span>! Your account is verified, but your workspace access is waiting for an administrator's approval.
+            <p className="text-gray-600 dark:text-gray-200 mb-6 leading-relaxed">
+              Welcome, <span className="font-semibold text-gray-800 dark:text-white">{user?.name}</span>! Your account is verified, but your workspace access is waiting for an administrator's approval.
             </p>
 
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-700 rounded-lg p-4 mb-8 text-sm text-amber-800 dark:text-amber-200 flex gap-3 text-left">
@@ -463,7 +463,7 @@ export default function PlatformDashboard() {
 
             <button
               onClick={logout}
-              className="inline-flex items-center justify-center gap-2 text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors w-full p-2"
+              className="inline-flex items-center justify-center gap-2 text-gray-500 dark:text-white hover:text-gray-900 dark:hover:text-white font-medium transition-colors w-full p-2"
             >
               <LogOut className="h-4 w-4" />
               Sign out for now
@@ -482,7 +482,7 @@ export default function PlatformDashboard() {
         <aside className="w-full md:w-80 p-4 sm:p-6 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col gap-4">
           <div className="mb-2">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Command Center</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Select a module to manage.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">Select a module to manage.</p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -505,10 +505,10 @@ export default function PlatformDashboard() {
                       <Icon size={20} />
                     </div>
                     <div>
-                      <p className={`text-sm font-semibold ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                      <p className={`text-sm font-semibold ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-white'}`}>
                         {card.label}
                       </p>
-                      <p className={`text-xl font-bold mt-0.5 ${isActive ? card.color : 'text-gray-900 dark:text-gray-100'}`}>
+                      <p className={`text-xl font-bold mt-0.5 ${isActive ? card.color : 'text-gray-900 dark:text-white'}`}>
                         {card.value}
                       </p>
                     </div>

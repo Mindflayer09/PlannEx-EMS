@@ -80,7 +80,7 @@ export default function Home() {
             <ThemeToggle />
 
             {/* 🚀 FIX 3: Updated text colors for links */}
-            <Link to="/reports" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors">
+            <Link to="/reports" className="text-sm text-gray-600 hover:text-gray-900 dark:text-white dark:hover:text-white transition-colors">
               Public Reports
             </Link>
 
@@ -126,7 +126,7 @@ export default function Home() {
           <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-white transition-colors duration-300">
             Multi-Tenant <span className="text-indigo-600 dark:text-indigo-400">Event Management System</span>
           </h1>
-          <p className="mt-4 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto transition-colors duration-300">
+          <p className="mt-4 text-lg text-gray-600 dark:text-gray-100 max-w-2xl mx-auto transition-colors duration-300">
             One platform, multiple organizations. Manage your team's events, 
             track tasks, and generate professional reports seamlessly.
           </p>
@@ -143,7 +143,7 @@ export default function Home() {
               <Spinner size="lg" />
             </div>
           ) : teams.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-12">No organizations registered yet.</p>
+            <p className="text-center text-gray-500 dark:text-gray-300 py-12">No organizations registered yet.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {teams.map((team) => (
@@ -172,9 +172,9 @@ export default function Home() {
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex-1">
                         {team.name}
                       </h3>
-                      <ArrowRight className="h-5 w-5 text-gray-300 dark:text-gray-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors shrink-0 ml-2" />
+                      <ArrowRight className="h-5 w-5 text-gray-300 dark:text-gray-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors shrink-0 ml-2" />
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-300 line-clamp-2">
                       {team.description || "Active organization on EventFlow SaaS."}
                     </p>
                   </div>

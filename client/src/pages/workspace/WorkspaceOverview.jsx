@@ -108,11 +108,11 @@ export default function WorkspaceOverview() {
 
   const cards = [
     ...(isManagement ? [
-      { label: 'Members', value: stats.totalUsers, icon: Users, color: 'bg-blue-50 text-blue-600', route: '/workspace/members' },
-      { label: 'Pending', value: stats.pendingApprovals, icon: UserCheck, color: 'bg-rose-50 text-rose-600', route: '/workspace/members' }
+      { label: 'Members', value: stats.totalUsers, icon: Users, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300', route: '/workspace/members' },
+      { label: 'Pending', value: stats.pendingApprovals, icon: UserCheck, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-300', route: '/workspace/members' }
     ] : []),
-    { label: 'Events', value: stats.totalEvents, icon: Calendar, color: 'bg-emerald-50 text-emerald-600', route: '/workspace/events' },
-    { label: 'Tasks', value: stats.totalTasks, icon: ClipboardList, color: 'bg-purple-50 text-purple-600', route: '/workspace/tasks' },
+    { label: 'Events', value: stats.totalEvents, icon: Calendar, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300', route: '/workspace/events' },
+    { label: 'Tasks', value: stats.totalTasks, icon: ClipboardList, color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300', route: '/workspace/tasks' },
   ];
 
   return (
@@ -127,7 +127,7 @@ export default function WorkspaceOverview() {
             <h1 className="text-xl font-black text-gray-900 dark:text-white">
               {isAdmin ? 'Admin Panel' : isSubAdmin ? 'Sub-Admin Workspace' : 'My Dashboard'}
             </h1>
-            <p className="text-xs font-bold text-gray-400 dark:text-gray-400 uppercase tracking-widest">{user?.team?.name}</p>
+            <p className="text-xs font-bold text-gray-400 dark:text-white uppercase tracking-widest">{user?.team?.name}</p>
           </div>
         </div>
       </div>
@@ -142,7 +142,7 @@ export default function WorkspaceOverview() {
               </div>
               <div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{label}</p>
-                <p className="text-2xl font-black text-gray-900">{value}</p>
+                <p className="text-2xl font-black dark:text-white text-gray-900">{value}</p>
               </div>
             </div>
           </Card>
@@ -154,7 +154,7 @@ export default function WorkspaceOverview() {
         <div className="mt-12">
           <div className="flex items-center gap-3 mb-8">
             <Sparkles className="h-5 w-5 text-purple-600" />
-            <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight">Public Event Reports</h2>
+            <h2 className="text-lg font-black dark:text-white text-gray-900 uppercase tracking-tight">Public Event Reports</h2>
           </div>
           
           {readyEvents.length === 0 ? (

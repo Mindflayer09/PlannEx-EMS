@@ -74,13 +74,13 @@ export default function CreateOrganization() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 text-gray-900 dark:text-gray-100">
+    <div className="max-w-3xl mx-auto py-8 px-4 text-gray-900 dark:text-white">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <Building2 className="h-6 w-6 text-indigo-600" />
           Create New Organization
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-gray-500 dark:text-gray-300 mt-1">
           Launch a new workspace. Once created, you can assign an Admin to manage it.
         </p>
       </div>

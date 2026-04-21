@@ -58,7 +58,7 @@ function DashboardRedirect() {
 export default function AppRoutes() {
   return (
     // 🚀 NEW: Global Canvas Styling for Dark Mode
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-900 dark:text-white transition-colors duration-200">
       <BrowserRouter>
         <AuthProvider>
           <Routes>

@@ -45,7 +45,7 @@ export default function Modal({ isOpen, onClose, title, children, size = "md" })
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
 
           <button
             onClick={onClose}

@@ -7,6 +7,7 @@ import Spinner from '../../components/common/Spinner';
 import toast from 'react-hot-toast';
 import { UserCheck, UserX } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { APPROVAL_COLORS } from '../../utils/constants';
 
 // 🏆 Define Hierarchy Power Levels (Must match backend strings exactly)
 const ROLE_POWER = {
@@ -73,7 +74,7 @@ export default function ManageUsers() {
   };
 
   return (
-    <div className="text-gray-900 dark:text-gray-100">
+    <div className="text-gray-900 dark:text-white">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Manage Members</h1>
 
       <div className="flex gap-2 mb-6">
@@ -84,7 +85,7 @@ export default function ManageUsers() {
             className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
               filter === f
                 ? 'bg-indigo-600 text-white'
-                : 'bg-white dark:bg-slate-800 dark:text-gray-100 text-gray-600 border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-900'
+                : 'bg-white dark:bg-slate-800 dark:text-white text-gray-600 border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-900'
             }`}
           >
             {f}
@@ -105,12 +106,12 @@ export default function ManageUsers() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-300">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-300">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-300">Organization</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-300">App Role</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-300">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-300">Actions</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-white">Name</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-white">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-white">Organization</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-white">App Role</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-white">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-500 dark:text-white">Actions</th>
               </tr>
             </thead>
 
@@ -127,7 +128,7 @@ export default function ManageUsers() {
 
                 return (
                   <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-slate-900">
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                       {user.name}
                       {isSelf && <span className="ml-2 text-xs text-indigo-600">(You)</span>}
                     </td>
@@ -137,14 +138,14 @@ export default function ManageUsers() {
 
                     <td className="px-4 py-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
-                        user.role === "super_admin" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-700"
+                        user.role === "super_admin" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200" : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white"
                       }`}>
                         {user.role}
                       </span>
                     </td>
 
                     <td className="px-4 py-3">
-                      <Badge className={user.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      <Badge className={user.isApproved ? APPROVAL_COLORS.approved : APPROVAL_COLORS.pending}>
                         {user.isApproved ? 'Approved' : 'Pending'}
                       </Badge>
                     </td>

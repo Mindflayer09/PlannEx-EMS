@@ -24,6 +24,7 @@ import Card from '../../components/common/Card';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Spinner from '../../components/common/Spinner';
+import { STATUS_COLORS, PRIORITY_COLORS } from '../../utils/constants';
 
 import { 
   Plus, 
@@ -256,13 +257,7 @@ export default function TeamTasks() {
   };
 
   const getStatusStyle = (status) => {
-    const styles = {
-      pending: 'bg-amber-50 text-amber-700 border-amber-100',
-      submitted: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-      approved: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-      rejected: 'bg-rose-50 text-rose-700 border-rose-100',
-    };
-    return styles[status] || 'bg-gray-50 text-gray-700';
+    return STATUS_COLORS[status] || 'bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-white';
   };
 
   return (
@@ -274,7 +269,7 @@ export default function TeamTasks() {
             <ClipboardCheck className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-gray-900">
+            <h1 className="text-2xl font-black dark:text-white text-gray-900">
               {isAdmin ? 'Admin Control' : isSubAdmin ? 'Sub-Admin Workspace' : 'My Assignments'}
             </h1>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mt-1">Workflow Tracking</p>
@@ -282,7 +277,7 @@ export default function TeamTasks() {
         </div>
         
         <div className="flex items-center gap-3">
-          <select className="rounded-2xl border-gray-100 shadow-sm text-sm bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-100 px-4 py-2 outline-none" value={filter} onChange={(e) => setFilter(e.target.value)}>
+                  <select className="rounded-2xl border-gray-100 shadow-sm text-sm bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white px-4 py-2 outline-none" value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="all">Filter: All</option>
             <option value="pending">🟡 Pending</option>
             <option value="submitted">🔵 Reviewing</option>
@@ -317,20 +312,20 @@ export default function TeamTasks() {
                 <h3 className="text-lg font-extrabold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">{task.title}</h3>
                 <p className="text-sm text-gray-500 mb-6 line-clamp-2">{task.description}</p>
                 
-                <div className="mt-auto space-y-2.5 text-[11px] bg-gray-50 p-4 rounded-2xl mb-6">
+                <div className="mt-auto space-y-2.5 text-[11px] bg-gray-50 dark:bg-slate-800 p-4 rounded-2xl mb-6 dark:border dark:border-slate-700">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400 font-medium">Assignee</span>
-                    <span className="font-bold text-gray-700">{task.assignedTo?.name}</span>
+                    <span className="text-gray-400 dark:text-gray-300 font-medium">Assignee</span>
+                    <span className="font-bold text-gray-700 dark:text-white">{task.assignedTo?.name}</span>
                   </div>
                   {task.delegatedBy && (
-                    <div className="flex justify-between border-t border-gray-200/50 pt-2 italic">
-                      <span className="text-gray-400">Via Sub-Admin</span>
-                      <span className="text-indigo-600 font-bold">{task.delegatedBy.name}</span>
+                    <div className="flex justify-between border-t border-gray-200/50 dark:border-slate-700 pt-2 italic">
+                      <span className="text-gray-400 dark:text-gray-300">Via Sub-Admin</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-bold">{task.delegatedBy.name}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-gray-200/50 pt-2">
-                    <span className="text-gray-400 font-medium">Execution Phase</span>
-                    <span className={`font-bold uppercase ${isPhaseReady ? 'text-emerald-600' : 'text-amber-500'}`}>
+                  <div className="flex justify-between border-t border-gray-200/50 dark:border-slate-700 pt-2">
+                    <span className="text-gray-400 dark:text-gray-300 font-medium">Execution Phase</span>
+                    <span className={`font-bold uppercase ${isPhaseReady ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500 dark:text-amber-400'}`}>
                       {task.phase?.replace('-', ' ')}
                     </span>
                   </div>
@@ -386,12 +381,12 @@ export default function TeamTasks() {
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            <select className="rounded-xl border border-gray-200 p-3 text-sm outline-none bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-gray-100" {...register('event')}>
+            <select className="rounded-xl border border-gray-200 p-3 text-sm outline-none bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white" {...register('event')}>
               <option value="">Select Event</option>
               {teamEvents.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
             </select>
             
-            <select className="rounded-xl border border-gray-200 p-3 text-sm outline-none bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-gray-100" {...register('assignedTo')}>
+            <select className="rounded-xl border border-gray-200 p-3 text-sm outline-none bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white" {...register('assignedTo')}>
               <option value="">Select Assignee</option>
               {teamMembers
                 .filter(m => ['sub-admin', 'volunteer', 'user'].includes(m.role))
@@ -405,7 +400,7 @@ export default function TeamTasks() {
           
           <div className="grid grid-cols-2 gap-4">
             <Input type="date" label="Deadline" {...register('deadline')} />
-              <select className="rounded-xl border border-gray-200 p-3 text-sm mt-6 outline-none bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-gray-100" {...register('priority')}>
+              <select className="rounded-xl border border-gray-200 p-3 text-sm mt-6 outline-none bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white" {...register('priority')}>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
@@ -427,7 +422,7 @@ export default function TeamTasks() {
       {/* MODAL 2: VOLUNTEER SUBMISSION */}
       <Modal isOpen={showSubmitModal} onClose={() => setShowSubmitModal(false)} title="Upload Completed Work">
         <form onSubmit={onVolunteerSubmit} className="space-y-6">
-          <textarea rows={3} className="block w-full rounded-2xl border border-gray-100 p-4 text-sm bg-gray-50/50 dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100" placeholder="Work notes..." value={submissionNotes} onChange={(e) => setSubmissionNotes(e.target.value)} required />
+          <textarea rows={3} className="block w-full rounded-2xl border border-gray-100 p-4 text-sm bg-gray-50/50 dark:bg-slate-900 dark:border-slate-700 dark:text-white" placeholder="Work notes..." value={submissionNotes} onChange={(e) => setSubmissionNotes(e.target.value)} required />
           
           <div className="border-2 border-dashed border-gray-200 rounded-3xl p-8 text-center relative hover:bg-indigo-50/30 transition-all">
             <input type="file" multiple accept="image/*" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={isUploading} />

@@ -193,10 +193,10 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
           </Link>
           <ThemeToggle />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
           {step === 1 ? "Create account" : "Verify your email"}
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+        <p className="text-sm text-gray-500 dark:text-gray-300 mt-2">
           {step === 1 ? (
             <>
               Already have an account?{" "}
