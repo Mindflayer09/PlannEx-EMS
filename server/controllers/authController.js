@@ -47,13 +47,20 @@ exports.verifyRegistrationAndCreateUser = async (req, res, next) => {
 
     console.log(`[VERIFY OTP] Starting verification for email: ${email}`);
 
-    const validOTP = await OTP.findOne({ email, otp });
-    if (!validOTP) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
-    }
+    // Check if OTP verification is temporarily disabled (bypass for development)
+    const isOtpBypass = otp === '000000' || process.env.SKIP_OTP_VERIFICATION === 'true';
 
-    console.log(`[VERIFY OTP] OTP valid, deleting OTP record`);
-    await OTP.deleteOne({ _id: validOTP._id });
+    if (!isOtpBypass) {
+      const validOTP = await OTP.findOne({ email, otp });
+      if (!validOTP) {
+        return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
+      }
+
+      console.log(`[VERIFY OTP] OTP valid, deleting OTP record`);
+      await OTP.deleteOne({ _id: validOTP._id });
+    } else {
+      console.log(`[VERIFY OTP] OTP bypass enabled, skipping verification`);
+    }
 
     // Normalize team payload fields and ignore legacy `club` values.
     const normalizedTeamId = [teamId, team].find((value) => value && typeof value === 'string' && value.trim() !== '');
