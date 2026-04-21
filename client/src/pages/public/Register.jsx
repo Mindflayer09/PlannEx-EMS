@@ -88,72 +88,31 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
   }, []);
 
   // ==========================================
-  // STEP 1: Validate Form & Request OTP (Manual)
+  // STEP 1: Create Account (OTP Temporarily Disabled)
   // ==========================================
   const onRequestOtp = async (data) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email }),
-      });
+      // TODO: Re-enable OTP verification step when ready
+      // const response = await fetch(`${API_URL}/auth/send-otp`, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ email: data.email }),
+      // });
+      // const result = await response.json();
+      // if (!response.ok) throw new Error(result.message || "Failed to request code");
+      // setPendingUser(data);
+      // toast.success("Verification code sent to your email!");
+      // setStep(2);
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || "Failed to request code");
-      setPendingUser(data);
-
-      toast.success("Verification code sent to your email!");
-      setStep(2); 
-    } catch (err) {
-      toast.error(err.message || "Failed to send verification code");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==========================================
-  // STEP 1.5: Handle Google Success Hand-off
-  // ==========================================
-  const handleGoogleSuccess = (googleData) => {
-    // Basic check to ensure they selected a team before using Google
-    if (!formData.team) {
-      toast.error("Please select an Organization first!");
-      return;
-    }
-
-    // 🚀 THE FIX: Look inside the nested 'data' object!
-    const actualData = googleData.data || googleData;
-
-    // Build the user object and save it safely!
-    setPendingUser({
-      name: actualData.name,
-      email: actualData.email,
-      password: "GoogleAuth_Shared_Secret_123!",
-      team: formData.team,
-      role: formData.role
-    });
-
-    toast.success("Google linked! Check your email for the verification code.");
-    setStep(2);
-  };
-
-  // ==========================================
-  // STEP 2: Verify OTP & Create Account
-  // ==========================================
-  const onVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (otp.length !== 6) return toast.error("Please enter a 6-digit code");
-
-    setLoading(true);
-    try {
+      // TEMPORARY: Directly create account without OTP
       const payload = {
-        email: pendingUser.email,
-        name: pendingUser.name,
-        password: pendingUser.password,
-        teamId: pendingUser.team, 
-        role: pendingUser.role,
-        otp: otp
+        email: data.email,
+        name: data.name,
+        password: data.password,
+        teamId: data.team,
+        role: data.role,
+        otp: "000000" // Placeholder OTP for temporary bypass
       };
 
       const response = await fetch(`${API_URL}/auth/verify-otp`, {
@@ -163,25 +122,83 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
       });
 
       const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Failed to create account");
 
-      if (!response.ok) throw new Error(result.message || "Invalid verification code");
-
-      toast.success(result.message || "Account created and verified!");
+      toast.success("Account created! Awaiting admin approval...");
       if (result.data && result.data.token) {
         localStorage.setItem('token', result.data.token);
         if (onSuccess) onSuccess();
         window.location.href = "/dashboard";
       } else {
-        // Fallback just in case
         switchToLogin();
       }
 
     } catch (err) {
-      toast.error(err.message || "Verification failed. Invalid or expired code.");
+      toast.error(err.message || "Failed to create account");
     } finally {
       setLoading(false);
     }
   };
+
+  // ==========================================
+  // STEP 1.5: Handle Google Success Hand-off
+  // ==========================================
+  const handleGoogleSuccess = async (googleData) => {
+    // Basic check to ensure they selected a team before using Google
+    if (!formData.team) {
+      toast.error("Please select an Organization first!");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 🚀 THE FIX: Look inside the nested 'data' object!
+      const actualData = googleData.data || googleData;
+
+      // TEMPORARY: Directly create account without OTP
+      const payload = {
+        email: actualData.email,
+        name: actualData.name,
+        password: "GoogleAuth_Shared_Secret_123!",
+        teamId: formData.team,
+        role: formData.role,
+        otp: "000000" // Placeholder OTP for temporary bypass
+      };
+
+      const response = await fetch(`${API_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Failed to create account");
+
+      toast.success("Account created via Google! Awaiting admin approval...");
+      if (result.data && result.data.token) {
+        localStorage.setItem('token', result.data.token);
+        if (onSuccess) onSuccess();
+        window.location.href = "/dashboard";
+      }
+
+    } catch (err) {
+      toast.error(err.message || "Failed to create Google account");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==========================================
+  // STEP 2: Verify OTP & Create Account
+  // ==========================================
+  // ==========================================
+  // STEP 2: Verify OTP & Create Account (DISABLED)
+  // ==========================================
+  /* OTP verification temporarily disabled. The account creation flow now completes directly from the first step.
+  const onVerifyOtp = async (e) => {
+    // verification logic temporarily disabled
+  };
+  */
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -290,7 +307,7 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
             />
 
             <Button type="submit" loading={loading} className="w-full">
-              Send Verification Code
+              Create Account
             </Button>
           </form>
           <GoogleAuthButton 
@@ -300,40 +317,8 @@ export default function Register({ onSuccess, switchToLogin, preSelectedTeamId =
           </>
         )}
 
-        {/* ==================== STEP 2: OTP VERIFICATION FORM ==================== */}
-        {step === 2 && (
-          <form onSubmit={onVerifyOtp} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Verification Code
-              </label>
-              <input
-                type="text"
-                maxLength="6"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} // Only allow numbers
-                placeholder="000000"
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-              />
-            </div>
-
-            <Button type="submit" loading={loading} disabled={otp.length !== 6} className="w-full">
-              Verify & Create Account
-            </Button>
-
-            <div className="text-center mt-4">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="inline-flex items-center text-sm text-gray-500 hover:text-indigo-600 transition-colors"
-              >
-                <ArrowLeft size={14} className="mr-1" />
-                Back to edit details
-              </button>
-            </div>
-          </form>
-        )}
+        {/* ==================== STEP 2: OTP VERIFICATION FORM (DISABLED) ==================== */}
+        {/* OTP verification UI temporarily disabled. Account creation completes directly from the first step. */}
 
         {step === 1 && (
           <p className="text-[11px] text-gray-400 text-center italic mt-4">
