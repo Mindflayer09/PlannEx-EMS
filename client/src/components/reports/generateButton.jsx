@@ -1,55 +1,44 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
-import { Sparkles, Loader2, Wand2 } from 'lucide-react';
-import { generateEventReport } from '../../api/services/report.service';
+import { Zap } from 'lucide-react';
+import Modal from '../common/Modal';
+import AdvancedReportGenerator from './AdvancedReportGenerator';
 
 export default function GenerateReportButton({ eventId, onReportGenerated }) {
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleGenerate = async () => {
-    if (!window.confirm("Gemini will now analyze all approved task images and descriptions to write the final report. Proceed?")) {
-      return;
-    }
-
-    setIsGenerating(true);
-    const toastId = toast.loading('Gemini is looking at task photos and writing recap...');
-
-    try {
-      const res = await generateEventReport(eventId);
-      toast.success('AI Report Published!', { id: toastId });
-      
-      if (onReportGenerated) {
-        onReportGenerated(res.data?.data || res.data);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to generate report', { id: toastId });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
-    <button
-      type="button"
-      onClick={handleGenerate}
-      disabled={isGenerating}
-      className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-3xl font-black text-white transition-all duration-500 shadow-xl
-        ${isGenerating 
-          ? 'bg-slate-800 cursor-not-allowed opacity-80' 
-          : 'bg-linear-to-br from-indigo-600 via-purple-600 to-pink-500 hover:shadow-purple-200 hover:scale-[1.02] active:scale-95'
-        }`}
-    >
-      {isGenerating ? (
-        <>
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="uppercase tracking-widest text-[10px]">AI is Analyzing Images...</span>
-        </>
-      ) : (
-        <>
-          <Wand2 className="h-5 w-5" />
-          <span className="uppercase tracking-widest text-[10px]">Finalize with AI</span>
-        </>
+    <>
+      <div className="w-full">
+        {/* Main Generate Button (Advanced Only) */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(true)}
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-3xl font-black text-white bg-linear-to-br from-cyan-600 to-blue-600 hover:shadow-blue-200 hover:scale-[1.02] active:scale-95 transition-all duration-500 shadow-xl"
+        >
+          <Zap className="h-5 w-5" />
+          <span className="uppercase tracking-widest text-[10px]">Generate Advanced Report</span>
+        </button>
+      </div>
+
+      {/* Advanced Report Generator Modal */}
+      {showAdvanced && (
+        <Modal
+          isOpen={showAdvanced}
+          title="Advanced Report Generator"
+          onClose={() => setShowAdvanced(false)}
+          size="large"
+        >
+          <AdvancedReportGenerator
+            eventId={eventId}
+            onReportGenerated={(report) => {
+              setShowAdvanced(false);
+              if (onReportGenerated) {
+                onReportGenerated(report);
+              }
+            }}
+          />
+        </Modal>
       )}
-    </button>
+    </>
   );
 }

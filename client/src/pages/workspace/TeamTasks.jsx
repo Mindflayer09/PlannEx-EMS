@@ -39,11 +39,6 @@ import {
   Clock
 } from 'lucide-react';
 
-// 🚀 FIX: Extract Vite variables globally so the bundler can guarantee injection
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-
 const taskSchema = z.object({
   title: z.string().min(3, 'Title is required'),
   description: z.string().min(5, 'Description is required'),
@@ -183,20 +178,28 @@ export default function TeamTasks() {
     const toastId = toast.loading('Uploading images and submitting work...');
 
     try {
-      // 🚀 FIX: Use the globally extracted variables
-      if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-        throw new Error("Missing Cloudinary config in Vercel settings!");
+      // 🚀 FIX: Extract variables inside the function directly
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+      // Diagnostic Logs (Check your F12 Browser Console!)
+      console.log("Checking Cloudinary Variables:", { cloudName, uploadPreset });
+      console.log("All Vite Environments:", import.meta.env);
+
+      if (!cloudName || !uploadPreset) {
+        throw new Error("Missing Cloudinary config! Please check your .env file and restart the server.");
       }
 
+      // Generate the URL safely only after confirming variables exist
+      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
       const uploadedMedia = [];
 
       for (const file of selectedFiles) {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET); 
+        formData.append('upload_preset', uploadPreset); 
         
-        // 🚀 FIX: Use the globally generated URL string
-        const uploadRes = await fetch(CLOUDINARY_URL, {
+        const uploadRes = await fetch(cloudinaryUrl, {
           method: 'POST',
           body: formData,
         });
@@ -222,6 +225,7 @@ export default function TeamTasks() {
       setSubmissionNotes('');
       fetchData();
     } catch (err) {
+      console.error("Upload Error:", err);
       toast.error(err.message || 'Submission failed', { id: toastId });
     } finally {
       setIsUploading(false);
@@ -333,7 +337,6 @@ export default function TeamTasks() {
 
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-50">
                   
-                  {/* 🚀 FIX: Only full Admins can review and approve submissions now */}
                   {isAdmin && task.status === 'submitted' && (
                     <Button size="sm" variant="success" className="w-full rounded-xl py-3 shadow-sm" onClick={() => { setActiveTask(task); setRejectionReason(''); setShowReviewModal(true); }}>
                       <Eye className="h-4 w-4 mr-2" /> Review Submission
@@ -382,6 +385,7 @@ export default function TeamTasks() {
           
           <div className="grid grid-cols-2 gap-4">
             <select className="rounded-xl border border-gray-200 p-3 text-sm outline-none bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white" {...register('event')}>
+              <option value="">Select Event</option>
               <option value="">Select Event</option>
               {teamEvents.map(e => <option key={e._id} value={e._id}>{e.title}</option>)}
             </select>

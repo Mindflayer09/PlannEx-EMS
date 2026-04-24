@@ -28,7 +28,11 @@ router.patch('/:id/finalize', authorizeRoles('admin'), eventController.finalizeE
 router.post('/:id/media', authorizeRoles('admin', 'sub-admin'), eventController.addMedia);
 
 // --- NEW AI ROUTE ---
+// Get media catalog from all approved tasks for report photo selection
+router.get('/:id/media-catalog', authorizeRoles('admin'), eventController.getMediaCatalog);
 // Generate AI draft report from event data and completed tasks
-router.post('/:id/generate-report', authorizeRoles('admin', 'sub-admin'), eventController.generateEventReport);
+router.post('/:id/generate-report', authorizeRoles('admin'), eventController.generateEventReport);
+// Generate social media content from selected photos and prompt (Admin only for publication)
+router.post('/:id/generate-social-content', authorizeRoles('admin'), eventController.generateSocialMediaContent);
 
 module.exports = router;

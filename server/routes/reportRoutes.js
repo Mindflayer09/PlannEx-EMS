@@ -1,11 +1,27 @@
 const express = require('express');
-const reportController = require('../controllers/reportController');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const reportController = require('../controllers/reportController'); // Ensure the path is correct
+const { authenticate, authorizeRoles } = require('../middleware/auth'); // Ensure the path is correct
 
 const router = express.Router();
 
+// Public Routes
 router.get('/public', reportController.getPublicReports);
+
+// Apply authentication middleware to all routes below this line
 router.use(authenticate);
+
+// ==========================================
+// 🤖 AI Generation Route (NEW)
+// ==========================================
+router.post(
+  '/event/:eventId/generate',
+  authorizeRoles('super_admin', 'admin', 'sub-admin'),
+  reportController.generateReportContent
+);
+
+// ==========================================
+// Standard CRUD Routes
+// ==========================================
 router.get(
   '/event/:eventId', 
   authorizeRoles('super_admin', 'admin', 'sub-admin'),

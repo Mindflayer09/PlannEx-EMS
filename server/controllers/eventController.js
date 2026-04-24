@@ -480,6 +480,312 @@ exports.generateEventReport = async (req, res, next) => {
   } catch (error) {
     // 7. Catch everything else and print it clearly
     console.error('FATAL AI ROUTE ERROR:', error);
-    res.status(500).json({ success: false, message: error.message || 'Internal server error during report generation' });
+    
+    // Provide user-friendly error messages
+    let statusCode = 500;
+    let userMessage = 'Failed to generate report';
+
+    if (error.status === 503 || error.message?.includes('503') || error.message?.includes('Service Unavailable')) {
+      statusCode = 503;
+      userMessage = 'AI service is currently overloaded. Please try again in a minute or two.';
+    } else if (error.status === 429 || error.message?.includes('429') || error.message?.includes('Rate limit')) {
+      statusCode = 429;
+      userMessage = 'Too many requests to AI service. Please wait a few moments and try again.';
+    } else if (error.message?.includes('invalid') || error.message?.includes('Invalid')) {
+      statusCode = 400;
+      userMessage = 'Generated content format was invalid. Please try again.';
+    } else if (error.message?.includes('No approved tasks')) {
+      statusCode = 400;
+      userMessage = error.message;
+    }
+
+    res.status(statusCode).json({ 
+      success: false, 
+      message: userMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// ==========================================
+// GET /api/events/:id/media-catalog
+// ==========================================
+// Admin can browse all media from approved tasks for report generation
+exports.getMediaCatalog = async (req, res, next) => {
+  try {
+    const event = await Event.findById(req.params.id).populate('team', 'name');
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    const isAdmin = await verifyTeamAdmin(req, event.team._id);
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Unauthorized access.' });
+
+    console.log(`[MEDIA CATALOG] Fetching media for event: ${event.title} (${event._id})`);
+
+    // Get all approved tasks with their submissions
+    const tasks = await Task.find({
+      event: event._id,
+      status: TASK_STATUSES.APPROVED
+    })
+      .populate('assignedTo', 'name email')
+      .lean(); // Use lean() for better performance
+
+    console.log(`[MEDIA CATALOG] Found ${tasks.length} approved tasks`);
+
+    // Extract all media with metadata
+    const mediaItems = [];
+    tasks.forEach(task => {
+      if (task.submissions && Array.isArray(task.submissions)) {
+        console.log(`[MEDIA CATALOG] Task "${task.title}" has ${task.submissions.length} submissions`);
+        
+        task.submissions.forEach((submission, subIdx) => {
+          if (submission.media && Array.isArray(submission.media)) {
+            console.log(`[MEDIA CATALOG] Submission ${subIdx} has ${submission.media.length} media items`);
+            
+            submission.media.forEach((media, mediaIdx) => {
+              if (media.url) {
+                mediaItems.push({
+                  url: media.url,
+                  fileType: media.fileType,
+                  publicId: media.publicId,
+                  uploadedBy: task.assignedTo?._id,
+                  uploadedByName: task.assignedTo?.name || 'Unknown',
+                  taskTitle: task.title,
+                  uploadedAt: submission.uploadedAt,
+                  notes: submission.notes || ''
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+
+    console.log(`[MEDIA CATALOG] Total media items extracted: ${mediaItems.length}`);
+
+    res.json({
+      success: true,
+      data: {
+        mediaCatalog: mediaItems,
+        total: mediaItems.length,
+        approvedTasksCount: tasks.length,
+        eventId: event._id,
+        eventTitle: event.title
+      }
+    });
+  } catch (error) {
+    console.error(`[MEDIA CATALOG ERROR]`, error);
+    next(error);
+  }
+};
+
+// ==========================================
+// POST /api/events/:id/generate-social-content
+// ==========================================
+// Generate social media optimized content from selected photos and optional custom prompt
+exports.generateSocialMediaContent = async (req, res, next) => {
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ success: false, message: 'Server misconfiguration: AI key missing.' });
+    }
+
+    const event = await Event.findById(req.params.id).populate('team', 'name');
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    const isAdmin = await verifyTeamAdmin(req, event.team._id);
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Unauthorized access.' });
+
+    if (req.user.role === 'sub-admin') {
+      return res.status(403).json({ success: false, message: 'Sub-Admins cannot generate social content. Only Full Admins have this permission.' });
+    }
+
+    const { selectedMedia = [], customPrompt = null, platform = 'general', publish = false } = req.body;
+
+    if (!selectedMedia || selectedMedia.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please select at least one photo for the report.' });
+    }
+
+    // Get task details for context
+    const tasks = await Task.find({
+      event: event._id,
+      status: TASK_STATUSES.APPROVED
+    }).populate('assignedTo', 'name');
+
+    const taskSummary = tasks.map(t => {
+      const volunteerName = t.assignedTo ? t.assignedTo.name : 'Volunteer';
+      return `${t.title} (${volunteerName})`;
+    }).join(', ');
+
+    // Create prompt based on custom input or default
+    let prompt;
+    const platformGuides = {
+      instagram: 'optimized for Instagram with hashtags and emojis',
+      facebook: 'suitable for Facebook with a professional yet friendly tone',
+      linkedin: 'professional and corporate-focused',
+      twitter: 'concise and impactful under 280 characters per tweet (multiple tweets)',
+      general: 'suitable for general social media platforms'
+    };
+
+    if (customPrompt) {
+      // Use custom prompt but enforce word count requirement
+      prompt = `
+        Event: "${event.title}"
+        Organization: ${event.team.name}
+        Description: ${event.description}
+        Activities: ${taskSummary}
+        Selected Photos: ${selectedMedia.length} images
+        
+        Custom Requirement: ${customPrompt}
+        
+        IMPORTANT: The content must be at least 1000 words.
+        Write engaging, social media-ready content that highlights the event and selected photos.
+        Format the output as JSON:
+        {
+          "title": "Catchy headline",
+          "content": "Full content here (minimum 1000 words)",
+          "hashtags": ["tag1", "tag2", "tag3"],
+          "wordCount": number,
+          "cta": "Call to action"
+        }
+      `;
+    } else {
+      // Default: Generate 1000+ word social media content
+      prompt = `
+        You are a professional social media content writer. Create engaging content ${platformGuides[platform]}.
+        
+        Event: "${event.title}"
+        Organization: ${event.team.name}
+        Description: ${event.description}
+        Key Activities: ${taskSummary}
+        Number of Photos: ${selectedMedia.length}
+        
+        Requirements:
+        1. Content must be EXACTLY 1000-1500 words
+        2. Write in an engaging, celebratory tone
+        3. Make it suitable for social media posting
+        4. Include multiple paragraphs with clear sections
+        5. Highlight team efforts and volunteer contributions
+        6. End with an inspiring call-to-action
+        7. Platform: ${platform}
+        
+        Format the output as valid JSON (no markdown):
+        {
+          "title": "Catchy, engaging headline",
+          "content": "Full content here (1000-1500 words, well-structured with multiple paragraphs)",
+          "hashtags": ["relevant", "hashtags", "for", platform],
+          "wordCount": number,
+          "platform": "${platform}",
+          "cta": "Inspirational call to action"
+        }
+      `;
+    }
+
+    // Generate content using Gemini
+    let generatedContent = null;
+    try {
+      const result = await generateWithRetry(prompt);
+      try {
+        let rawText = result.response.text();
+        rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        generatedContent = JSON.parse(rawText);
+
+        // Validate word count
+        const wordCount = generatedContent.content.split(/\s+/).length;
+        if (wordCount < 1000 && !customPrompt) {
+          console.warn(`Generated content has only ${wordCount} words, requesting regeneration`);
+          return res.status(400).json({
+            success: false,
+            message: `Generated content has only ${wordCount} words. Minimum 1000 words required. Please try again.`
+          });
+        }
+        generatedContent.wordCount = wordCount;
+      } catch (parseError) {
+        console.error('Content Parse Error:', (result && result.response && result.response.text) ? result.response.text() : parseError.message);
+        // fallthrough to handle as generation failure
+        generatedContent = null;
+      }
+    } catch (aiError) {
+      // AI service failed (rate limit / 503 etc.) - handle gracefully below
+      console.error('AI generation error:', aiError.message || aiError);
+      generatedContent = null;
+    }
+
+    // Save or update report with social media content
+    let report = await Report.findOne({ event: event._id });
+
+    const reportStatus = publish ? 'published' : 'draft';
+    const reportIsPublic = !!publish;
+    const reportImage = selectedMedia && selectedMedia.length > 0 ? selectedMedia[0] : (event.media?.[0]?.url || '');
+
+    if (!report) {
+      report = new Report({
+        event: event._id,
+        team: event.team._id,
+        createdBy: req.user._id,
+        selectedMedia: selectedMedia.map(url => ({ url })),
+        customPrompt,
+        platform,
+        socialMediaContent: generatedContent ? generatedContent.content : null,
+        wordCount: generatedContent ? generatedContent.wordCount : 0,
+        reportImage: reportImage,
+        status: generatedContent ? reportStatus : 'draft',
+        isPublic: generatedContent ? reportIsPublic : false
+      });
+    } else {
+      report.selectedMedia = selectedMedia.map(url => ({ url }));
+      report.customPrompt = customPrompt;
+      report.platform = platform;
+      report.socialMediaContent = generatedContent ? generatedContent.content : report.socialMediaContent;
+      report.wordCount = generatedContent ? generatedContent.wordCount : report.wordCount;
+      report.reportImage = reportImage || report.reportImage;
+      report.status = generatedContent ? reportStatus : report.status;
+      report.isPublic = generatedContent ? reportIsPublic : report.isPublic;
+    }
+
+    await report.save();
+
+    // If publishing publicly, optionally update event metadata (non-destructive)
+    if (publish) {
+      try {
+        event.reportStatus = 'published';
+        await event.save();
+      } catch (e) {
+        console.warn('[SOCIAL CONTENT] Failed to update event metadata for publish:', e.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Social media content generated successfully!',
+      data: {
+        report,
+        generatedContent: {
+          ...generatedContent,
+          reportId: report._id
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Social Content Generation Error:', error);
+    
+    // Provide user-friendly error messages
+    let statusCode = 500;
+    let userMessage = 'Failed to generate social media content';
+
+    if (error.status === 503 || error.message?.includes('503') || error.message?.includes('Service Unavailable')) {
+      statusCode = 503;
+      userMessage = 'AI service is currently overloaded. Please try again in a minute or two.';
+    } else if (error.status === 429 || error.message?.includes('429') || error.message?.includes('Rate limit')) {
+      statusCode = 429;
+      userMessage = 'Too many requests to AI service. Please wait a few moments and try again.';
+    } else if (error.message?.includes('invalid') || error.message?.includes('Invalid')) {
+      statusCode = 400;
+      userMessage = 'Generated content format was invalid. Please try again.';
+    }
+
+    res.status(statusCode).json({ 
+      success: false, 
+      message: userMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };

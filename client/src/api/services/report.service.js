@@ -11,6 +11,24 @@ export const generateEventReport = (eventId, formData) => {
 };
 
 /**
+ * 🎨 MEDIA CATALOG
+ * Fetch all media from approved task submissions for report photo selection
+ */
+export const getMediaCatalog = (eventId) => {
+  console.log(`[REPORT SERVICE] Fetching media catalog for event: ${eventId}`);
+  return api.get(`/events/${eventId}/media-catalog`);
+};
+
+/**
+ * 📱 SOCIAL MEDIA CONTENT GENERATION
+ * Generate social media optimized content from selected photos and custom prompt
+ */
+export const generateSocialMediaContent = (eventId, data) => {
+  // 🚀 THE FIX: Pointing to the new XML controller route!
+  return api.post(`/reports/event/${eventId}/generate`, data);
+};
+
+/**
  * 📊 REPORT FETCHING
  * Fetch a specific report for a single event
  */
@@ -31,7 +49,8 @@ export const getPublicReports = (filters = {}) => {
  * 🗑️ DELETION (Staff Only)
  */
 export const deleteReport = (reportId) => {
-  return api.get(`/reports/${reportId}`); // Usually reports are tied to events, confirm if it's GET or DELETE
+  // 🚀 BONUS FIX: Changed from api.get to api.delete
+  return api.delete(`/reports/${reportId}`); 
 };
 
 /**

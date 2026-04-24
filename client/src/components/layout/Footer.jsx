@@ -1,24 +1,28 @@
-import { 
-  Mail, 
-  Linkedin, 
-  Instagram, 
-  ShieldCheck,
-  Lock,
-  FileCheck,
-  Award
-} from 'lucide-react';
 export default function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="bg-[#f4f4f5] dark:bg-gray-800 py-3 border-t border-gray-200 dark:border-gray-700 transition-colors duration-200">
-        <div className="text-center">
-          <p className="text-sm text-gray-900 dark:text-white">
-            <span className="font-semibold text-medium">Choose Privacy. Choose PlannEx.</span>
-            <span className="mx-2 text-gray-400 dark:text-gray-500">|</span>
-            <span className="text-xs text-gray-500 dark:text-gray-300 font-medium">
-              © 2026, PlannEx EMS. All Rights Reserved.
-            </span>
-          </p>
-        </div>
+    // Adjusted to py-4 on mobile so it's not overly tall, and py-6 on desktop
+    <footer className="bg-white dark:bg-gray-900 py-4 sm:py-6 border-t border-gray-200 dark:border-gray-800 transition-colors duration-200 z-10 relative mt-auto">
+      {/* Added gap-1 for consistent mobile spacing when stacked */}
+      <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center text-center gap-1 sm:gap-0">
+        
+        {/* Brand Promise */}
+        <span className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">
+          Choose Privacy. Choose PlannEx.
+        </span>
+
+        {/* Separator (Hides on mobile, shows on desktop) */}
+        <span className="hidden sm:inline-block mx-3 text-gray-300 dark:text-gray-600">
+          |
+        </span>
+
+        {/* Copyright */}
+        <span className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400">
+          © {currentYear}, PlannEx EMS. All Rights Reserved.
+        </span>
+
+      </div>
     </footer>
   );
 }

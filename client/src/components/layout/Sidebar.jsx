@@ -11,9 +11,6 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 
-// ✅ THE FIX: All links now point to the unified /workspace routes defined in App.jsx
-// and the main dashboard link points to the smart /dashboard redirector!
-
 const adminLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/workspace/members', label: 'Manage Members', icon: Users },
@@ -43,27 +40,32 @@ const linksByRole = {
 export default function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth();
   
-  // Safely fallback to an empty array if the role isn't found (like for super_admin)
+  // Safely fallback to an empty array if the role isn't found
   const links = linksByRole[user?.role] || [];
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* 🚀 MOBILE FIX: Added backdrop-blur and smooth fade-in for premium feel */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden transition-opacity"
           onClick={onClose}
         />
       )}
 
       <aside
         className={clsx(
-          'fixed top-16 left-0 z-30 h-[calc(100vh-4rem)] w-64 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white transition-transform duration-200',
+          // Base styles and layout
+          'fixed top-16 left-0 z-30 h-[calc(100vh-4rem)] w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white transition-all duration-300 ease-in-out flex flex-col',
+          // 🚀 MOBILE FIX: Added deep shadow on mobile, removed on desktop
+          'shadow-2xl lg:shadow-none',
+          // Desktop positioning
           'lg:translate-x-0 lg:static lg:z-auto',
+          // Mobile slide toggle
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1.5 flex-1 overflow-y-auto">
           {links.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -71,18 +73,28 @@ export default function Sidebar({ isOpen, onClose }) {
               onClick={onClose}
               className={({ isActive }) =>
                 clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  // 🚀 MOBILE FIX: Changed to py-3 for mobile thumbs, py-2.5 for desktop mice
+                  'flex items-center gap-3 px-3 py-3 sm:py-2.5 rounded-xl text-sm font-semibold transition-all duration-200',
                   isActive
-                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'
                 )
               }
             >
-              <Icon className="h-5 w-5 shrink-0" />
+              <Icon className={clsx(
+                "h-5 w-5 shrink-0 transition-colors",
+                // Make the active icon "pop" slightly more
+                "text-current" 
+              )} />
               {label}
             </NavLink>
           ))}
         </nav>
+        
+        {/* Optional: Add a little branding or version number at the bottom of the sidebar */}
+        <div className="p-4 border-t border-gray-100 dark:border-gray-800 text-xs font-medium text-gray-400 dark:text-gray-500 text-center uppercase tracking-widest">
+          PlannEx v1.0
+        </div>
       </aside>
     </>
   );

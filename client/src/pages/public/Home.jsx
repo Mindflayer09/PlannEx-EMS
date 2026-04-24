@@ -64,10 +64,8 @@ export default function Home() {
   };
 
   return (
-    // 🚀 FIX 1: Added dark: gradients to the main background wrapper
     <div className="min-h-screen flex flex-col bg-linear-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-colors duration-300">
       
-      {/* 🚀 FIX 2: Added dark: bg and borders to the Header */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-auto sm:h-16 flex flex-col sm:flex-row flex-wrap items-center justify-between gap-3 py-3 sm:py-0">
           <Link to="/" className="text-xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
@@ -76,10 +74,8 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-4">
-            {/* Added ThemeToggle here! */}
             <ThemeToggle />
 
-            {/* 🚀 FIX 3: Updated text colors for links */}
             <Link to="/reports" className="text-sm text-gray-600 hover:text-gray-900 dark:text-white dark:hover:text-white transition-colors">
               Public Reports
             </Link>
@@ -122,7 +118,6 @@ export default function Home() {
       <main className="grow">
         {/* HERO */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-          {/* 🚀 FIX 4: Made the main heading text white in dark mode */}
           <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-white transition-colors duration-300">
             Multi-Tenant <span className="text-indigo-600 dark:text-indigo-400">Event Management System</span>
           </h1>
@@ -152,7 +147,7 @@ export default function Home() {
                   onClick={() => handleTeamNavigation(team._id)}
                   className="cursor-pointer group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg dark:hover:shadow-gray-900/50 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all duration-200"
                 >
-                  {/* Logo Section - Full Width at Top */}
+                  {/* Logo Section */}
                   <div className="h-32 w-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center overflow-hidden">
                     {team.logo && !failedLogos.has(team._id) ? (
                       <img 

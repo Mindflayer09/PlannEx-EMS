@@ -12,7 +12,7 @@ const reportSchema = new mongoose.Schema(
       ref: 'Team',
       required: true,
     },
-   content: {
+    content: {
       type: mongoose.Schema.Types.Mixed,
       default: {}
     },
@@ -23,6 +23,29 @@ const reportSchema = new mongoose.Schema(
     galleryImages: [{
       type: String
     }],
+    // 🆕 NEW FIELDS FOR ENHANCED REPORT GENERATION
+    selectedMedia: [{
+      url: String,
+      fileType: String,
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }],
+    customPrompt: {
+      type: String,
+      default: null
+    },
+    platform: {
+      type: String,
+      enum: ['instagram', 'facebook', 'linkedin', 'twitter', 'general'],
+      default: 'general'
+    },
+    wordCount: {
+      type: Number,
+      default: 0
+    },
+    socialMediaContent: {
+      type: String,
+      default: null
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

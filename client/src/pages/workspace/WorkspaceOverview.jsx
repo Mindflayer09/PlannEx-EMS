@@ -168,8 +168,8 @@ export default function WorkspaceOverview() {
                 <Card key={event._id} className="p-6 flex flex-col justify-between border-gray-100 hover:border-purple-200 transition-all rounded-3xl">
                   <div>
                     <Badge className="bg-emerald-50 text-emerald-700 mb-4 border-emerald-100 uppercase text-[9px] font-black">Finalized</Badge>
-                    <h3 className="text-lg font-black text-gray-900 mb-2 leading-tight">{event.title}</h3>
-                    <p className="text-sm text-gray-500 mb-8 line-clamp-2 leading-relaxed">{event.description}</p>
+                    <h3 className="text-lg font-black text-gray-900 mb-2 dark:text-amber-50 leading-tight">{event.title}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-8 line-clamp-2 leading-relaxed">{event.description}</p>
                   </div>
                   <div className="mt-auto">
                     {/* The Button triggers Gemini to build the public PR report and populate the gallery */}
