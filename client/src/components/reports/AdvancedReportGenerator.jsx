@@ -11,7 +11,7 @@ import {
   Check,
   Newspaper
 } from 'lucide-react';
-import { getMediaCatalog, generateSocialMediaContent, updateReport } from '../../api/services/report.service';
+import { getMediaCatalog, generateSocialMediaContent, updateReport, getPublicReports } from '../../api/services/report.service'; // Added getPublicReports
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 
@@ -54,18 +54,38 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
   const fetchMediaCatalog = async () => {
     setLoadingCatalog(true);
     try {
+      // 1. Fetch all available media for the event
       const response = await getMediaCatalog(eventId);
-      
-      const catalog = response.data?.data?.mediaCatalog || response.data?.mediaCatalog || [];
+      const rawCatalog = response.data?.data?.mediaCatalog || response.data?.mediaCatalog || [];
       const approvedTasks = response.data?.data?.approvedTasksCount || response.data?.approvedTasksCount || 0;
 
-      setMediaCatalog(catalog);
+      // 2. Fetch all EXISTING reports for this event to determine used photos
+      // We use the eventId filter we added to the backend route earlier
+      const reportsRes = await getPublicReports({ eventId: eventId, limit: 100 }); 
+      const existingReports = reportsRes?.data?.data?.reports || [];
+      
+      // 3. Extract used image URLs
+      const usedImages = [];
+      existingReports.forEach(report => {
+         if (report.reportImage) usedImages.push(report.reportImage);
+         if (report.galleryImages && Array.isArray(report.galleryImages)) {
+             usedImages.push(...report.galleryImages);
+         }
+      });
 
-      if (catalog.length === 0) {
+      // 4. Filter the catalog: keep only media NOT present in usedImages
+      const availableMedia = rawCatalog.filter(media => !usedImages.includes(media.url));
+
+      setMediaCatalog(availableMedia);
+
+      if (availableMedia.length === 0) {
         if (approvedTasks === 0) {
           toast.error('No approved tasks found. Complete and approve tasks first.');
+        } else if (rawCatalog.length > 0) {
+          // If raw catalog had items but available is 0, it means everything was used
+          toast.error('All approved photos have already been published in existing reports.');
         } else {
-          toast.error('Approved tasks found but no media/photos submitted. Please upload photos to completed tasks.');
+          toast.error('Approved tasks found but no photos submitted.');
         }
       }
     } catch (error) {
@@ -192,13 +212,17 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
     setPublishing(true);
     const toastId = toast.loading('Publishing article to public feed...');
     try {
-      await updateReport(reportId, { 
+      const payload = { 
         status: 'published', 
         isPublic: true,
         title: generatedContent.title,
         content: generatedContent.content,
-        hashtags: generatedContent.hashtags 
-      });
+        hashtags: generatedContent.hashtags,
+        reportImage: selectedMedia[0] || null, 
+        galleryImages: selectedMedia.slice(1)  
+      };
+
+      await updateReport(reportId, payload);
       
       setGeneratedContent(prev => ({ 
         ...prev, 
@@ -209,7 +233,9 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
           isPublic: true,
           title: generatedContent.title,
           content: generatedContent.content,
-          hashtags: generatedContent.hashtags
+          hashtags: generatedContent.hashtags,
+          reportImage: selectedMedia[0] || null,
+          galleryImages: selectedMedia.slice(1)
         } 
       }));
       

@@ -109,26 +109,19 @@ exports.generateReportContent = async (req, res, next) => {
 
       parsedContent.wordCount = parsedContent.content.split(/\s+/).length;
 
-      // 4. Save/Update the report in MongoDB
-      let report = await Report.findOne({ event: eventId });
-      if (!report) {
-        report = new Report({
-          event: eventId,
-          team: event.team._id,
-          createdBy: req.user._id,
-        });
-      }
-
-      report.content = parsedContent.content || "No content generated";
-      report.title = parsedContent.title || `${event.title} Report`;
-      report.platform = platform;
-      report.wordCount = parsedContent.wordCount || report.content.split(' ').length;
-      if (parsedContent.hashtags && Array.isArray(parsedContent.hashtags)) {
-        report.hashtags = parsedContent.hashtags;
-      }
-      
-      report.status = publish ? 'published' : 'draft';
-      report.isPublic = publish || false;
+      // 4. 🔥 NEW LOGIC: ALWAYS SAVE AS A NEW REPORT INSTEAD OF OVERWRITING
+      const report = new Report({
+        event: eventId,
+        team: event.team._id,
+        createdBy: req.user._id,
+        content: parsedContent.content || "No content generated",
+        title: parsedContent.title || `${event.title} Report`,
+        platform: platform,
+        wordCount: parsedContent.wordCount || parsedContent.content.split(' ').length,
+        hashtags: parsedContent.hashtags && Array.isArray(parsedContent.hashtags) ? parsedContent.hashtags : ["PlannEx"],
+        status: publish ? 'published' : 'draft',
+        isPublic: publish || false
+      });
 
       await report.save();
 
@@ -149,19 +142,17 @@ exports.generateReportContent = async (req, res, next) => {
     } catch (aiError) {
       console.error('[AI PROCESSING ERROR]', aiError.message);
 
-      let draftReport = await Report.findOne({ event: eventId });
-      if (!draftReport) {
-        draftReport = new Report({
-          event: eventId,
-          team: event.team._id,
-          createdBy: req.user._id,
-          title: `${event.title} - Draft (AI Failed)`,
-          content: "The AI service was unable to generate the content. Please try again or edit manually.",
-          status: 'draft',
-          isPublic: false
-        });
-        await draftReport.save();
-      }
+      // 🔥 NEW LOGIC: Save failed generation as a new draft
+      const draftReport = new Report({
+        event: eventId,
+        team: event.team._id,
+        createdBy: req.user._id,
+        title: `${event.title} - Draft (AI Failed)`,
+        content: "The AI service was unable to generate the content. Please try again or edit manually.",
+        status: 'draft',
+        isPublic: false
+      });
+      await draftReport.save();
 
       return res.status(200).json({
         success: true, 
@@ -169,8 +160,8 @@ exports.generateReportContent = async (req, res, next) => {
         data: { 
           report: draftReport,
           generatedContent: {
-             title: draftReport?.title || "Draft",
-             content: draftReport?.content || "No content",
+             title: draftReport.title,
+             content: draftReport.content,
              wordCount: 0
           }
         }
@@ -207,16 +198,18 @@ exports.getReportById = async (req, res, next) => {
 // ==========================================
 exports.getReportByEventId = async (req, res, next) => {
   try {
-    const report = await Report.findOne({ event: req.params.eventId })
+    // 🔥 NEW LOGIC: Use .find() instead of .findOne() to get ALL reports for the event
+    const reports = await Report.find({ event: req.params.eventId })
       .populate('event', 'title description')
       .populate('team', 'name')
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 }); // Newest first
 
-    if (!report) {
-      return res.status(404).json({ success: false, message: 'Report not found for this event' });
+    if (!reports || reports.length === 0) {
+      return res.status(404).json({ success: false, message: 'No reports found for this event' });
     }
 
-    res.json({ success: true, data: { report } });
+    res.json({ success: true, data: { reports } }); // Changed key to 'reports'
   } catch (error) {
     next(error);
   }
@@ -227,11 +220,12 @@ exports.getReportByEventId = async (req, res, next) => {
 // ==========================================
 exports.getPublicReports = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, teamId } = req.query;
+    const { page = 1, limit = 100, teamId, eventId } = req.query; // Added eventId to query params
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const filter = { isPublic: true, status: 'published' };
     if (teamId) filter.team = teamId;
+    if (eventId) filter.event = eventId; // Allow filtering by eventId for our exclusivity check
 
     const reports = await Report.find(filter)
       .populate('event', 'title description media budget team')
@@ -264,7 +258,7 @@ exports.getPublicReports = async (req, res, next) => {
 // ==========================================
 exports.updateReport = async (req, res, next) => {
   try {
-    const { title, content, hashtags, status, isPublic } = req.body;
+    const { title, content, hashtags, status, isPublic, reportImage, galleryImages } = req.body;
     
     const report = await Report.findById(req.params.id);
     if (!report) {
@@ -280,6 +274,9 @@ exports.updateReport = async (req, res, next) => {
     if (title !== undefined) report.title = title;
     if (content !== undefined) report.content = content;
     if (hashtags !== undefined) report.hashtags = hashtags;
+    
+    if (reportImage !== undefined) report.reportImage = reportImage;
+    if (galleryImages !== undefined) report.galleryImages = galleryImages;
     
     if (status && ['draft', 'published'].includes(status)) report.status = status;
     if (isPublic !== undefined) report.isPublic = isPublic;
@@ -320,12 +317,17 @@ exports.deleteReport = async (req, res, next) => {
     }
 
     const event = await Event.findById(report.event);
-    if (event) {
-      event.reportStatus = 'none';
-      await event.save();
-    }
-
+    
     await Report.findByIdAndDelete(req.params.id);
+    
+    // Check if any other published reports exist for this event
+    if (event) {
+        const remainingReports = await Report.countDocuments({ event: event._id, isPublic: true });
+        if (remainingReports === 0) {
+            event.reportStatus = 'none';
+            await event.save();
+        }
+    }
 
     res.json({ success: true, message: 'Report deleted' });
   } catch (error) {
