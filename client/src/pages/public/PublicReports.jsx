@@ -2,23 +2,38 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getPublicReports, deleteReport } from '../../api/services/report.service'; 
-import { Calendar, Building, ArrowRight, Folder, Tag, ChevronLeft, Trash2 } from 'lucide-react';
+import { Calendar, Building, ArrowRight, Folder, Tag, ChevronLeft, Trash2, X } from 'lucide-react'; 
 import Spinner from '../../components/common/Spinner';
 import Modal from '../../components/common/Modal';
 import { formatDate } from '../../utils/helpers';
 import ThemeToggle from '../../components/common/ThemeToggle';
-import { useAuth } from '../../context/AuthContext'; // Added to check for admin status
+import { useAuth } from '../../context/AuthContext';
 
 const PLACEHOLDER = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=1000";
 
+const IGNORE_WORDS = new Set([
+  'The', 'This', 'That', 'These', 'Those', 'With', 'From', 'Your', 'Have', 'Has', 'Had', 'Are', 'Were', 'Was', 'Been', 'Being', 'And', 'For', 'Not', 'But', 'She', 'Him', 'Her', 'His', 'Our', 'They', 'Them', 'Their', 'Its', 'All', 'Any', 'Both', 'Each', 'Few', 'More', 'Most', 'Some', 'Such', 'When', 'Where', 'Why', 'How', 'What', 'Which', 'Who', 'Whom', 'Whose', 'Then', 'Than', 'During', 'After', 'Before', 'While', 'Since', 'Until', 'Because', 'Although', 'Though', 'Even', 'If', 'Unless', 'As', 'So', 'Very', 'Too', 'Quite', 'Just', 'Already', 'Yet', 'Still', 'Always', 'Never', 'Often', 'Sometimes', 'Rarely', 'Usually', 'Mainly', 'Mostly', 'Only', 'Also', 'Furthermore', 'Moreover', 'However', 'Nevertheless', 'Nonetheless', 'Therefore', 'Thus', 'Hence', 'Consequently', 'Otherwise', 'Instead', 'Anyway', 'Besides', 'Meanwhile', 'Next', 'Finally', 'Eventually', 'Suddenly', 'Immediately', 'Ultimately', 'Initially', 'Actually', 'Basically', 'Literally', 'Simply', 'Main', 'A', 'An', 'In', 'On', 'At', 'To', 'Of', 'Is', 'It', 'By', 'Do', 'Go', 'He', 'Me', 'My', 'No', 'Or', 'Up', 'Us', 'We', 'Am'
+]);
+
 export default function PublicReports() {
-  const { user } = useAuth(); // Access current logged-in user
+  const { user } = useAuth();
+  
+  const canManageReport = (reportDoc) => {
+    if (!user) return false;
+    if (user.role === 'super_admin') return true;
+    const reportTeamId = reportDoc.team?._id || reportDoc.team;
+    const creatorId = reportDoc.createdBy?._id || reportDoc.createdBy;
+    if (user.team === reportTeamId || user.teamId === reportTeamId) return true;
+    if (user.teams && user.teams.some(t => t.team === reportTeamId || t._id === reportTeamId)) return true;
+    if (user._id === creatorId) return true;
+    return false;
+  };
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
-  
-  // 🔥 NEW STATE: Tracks which folder is open
   const [activeFolder, setActiveFolder] = useState(null);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -38,7 +53,6 @@ export default function PublicReports() {
   const getSafeImage = (src) => (!src || typeof src !== 'string' || src.startsWith('blob:') ? PLACEHOLDER : src);
   const handleImageError = (e) => { e.target.src = PLACEHOLDER; };
 
-  // Safely unpacks AI JSON strings whether the backend dumped an object OR an array
   const extractCleanContent = (reportDoc, eventDoc) => {
     let title = reportDoc.title || eventDoc.title;
     let content = reportDoc.content || eventDoc.description;
@@ -54,47 +68,86 @@ export default function PublicReports() {
           title = parsed.title || title;
           content = parsed.content || content;
         } catch (e) {
-          console.warn('Failed to parse AI content JSON, falling back to raw text', e);
+          console.warn('Failed to parse AI content JSON', e);
         }
       }
     }
+
+    if (typeof content === 'object' && content !== null) {
+        content = Object.values(content)
+            .filter(val => val) 
+            .map(val => typeof val === 'object' ? JSON.stringify(val) : String(val))
+            .join('\n\n'); 
+    }
+
+    if (typeof content === 'string') {
+        const embeddedJsonRegex = /\[\s*\{[\s\S]*?\}\s*\]/g;
+        
+        content = content.replace(embeddedJsonRegex, (match) => {
+            try {
+                const parsedArray = JSON.parse(match);
+                if (Array.isArray(parsedArray)) {
+                    return parsedArray.map(item => {
+                        if (item.role && item.description) {
+                            let desc = item.description.replace(/\b([A-Z][a-z]+)\b/g, (word) => {
+                                return IGNORE_WORDS.has(word) ? word : `**${word}**`;
+                            });
+                            return `• **${item.role}**: ${desc}`;
+                        }
+                        return "• " + Object.values(item).filter(Boolean).join(' - ');
+                    }).join('\n\n');
+                }
+                return match;
+            } catch(e) {
+                return match; 
+            }
+        });
+    }
+
     if (typeof content === 'string') {
         content = content.replace(/\\n/g, '\n');
     }
-    return { title, content };
+    
+    return { title: String(title), content: String(content) };
   };
 
-  // 🔥 NEW LOGIC: Group reports by Organization Name
+  const renderFormattedText = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={index} className="font-extrabold text-gray-900 dark:text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+  };
+
   const groupedReports = useMemo(() => {
     return events.reduce((acc, report) => {
       const eventDoc = report.event || report;
       const orgName = report.team?.name || eventDoc.club?.name || "Independent Events";
-      
-      if (!acc[orgName]) {
-        acc[orgName] = [];
-      }
+      if (!acc[orgName]) acc[orgName] = [];
       acc[orgName].push(report);
       return acc;
     }, {});
   }, [events]);
 
-  // 🔥 NEW LOGIC: Admin Delete Handler
   const handleDeleteReport = async (reportId) => {
     if (!window.confirm("Are you sure you want to delete this report? This cannot be undone.")) return;
-    
     try {
       await deleteReport(reportId);
-      // Remove the deleted report from the local state
       setEvents(prev => prev.filter(r => r._id !== reportId));
-      setSelected(null); // Close the modal
+      setSelected(null); 
       toast.success("Report deleted successfully");
-      
-      // If that was the last report in the active folder, close the folder
       if (activeFolder && groupedReports[activeFolder]?.length === 1) {
           setActiveFolder(null);
       }
     } catch (err) {
-      console.error("[DELETE ERROR]", err);
       toast.error("Failed to delete report");
     }
   };
@@ -102,7 +155,7 @@ export default function PublicReports() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300 font-sans text-gray-900 dark:text-gray-100">
       
-      {/* Modern Header */}
+      {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -125,8 +178,6 @@ export default function PublicReports() {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        
-        {/* Navigation Breadcrumb */}
         {activeFolder && (
           <button 
             onClick={() => setActiveFolder(null)}
@@ -160,7 +211,6 @@ export default function PublicReports() {
           /* ================= FOLDER VIEW ================= */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.entries(groupedReports).map(([orgName, orgReports]) => {
-              // Get the most recent report image to use as the folder thumbnail
               const latestReport = orgReports[0];
               const eventDoc = latestReport.event || latestReport;
               const fallbackPhotos = eventDoc.images || eventDoc.media || [];
@@ -202,9 +252,7 @@ export default function PublicReports() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {groupedReports[activeFolder].map((reportDoc) => {
               const eventDoc = reportDoc.event || reportDoc; 
-              
               const { title: articleTitle, content: articleContent } = extractCleanContent(reportDoc, eventDoc);
-              
               const fallbackPhotos = eventDoc.images || eventDoc.media || [];
               const heroImage = reportDoc.reportImage || fallbackPhotos[0]?.url || fallbackPhotos[0];
               const publishDate = formatDate(reportDoc.createdAt || eventDoc.createdAt);
@@ -212,10 +260,24 @@ export default function PublicReports() {
               return (
               <article 
                 key={reportDoc._id} 
-                className="group flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                className="group relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
                 onClick={() => setSelected(reportDoc)}
               >
-                {/* Card Image */}
+                {/* 🚀 FIXED: Swapped 'super_admin' check with 'canManageReport' */}
+                {canManageReport(reportDoc) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); 
+                      handleDeleteReport(reportDoc._id);
+                    }}
+                    // 🚀 FIXED: opacity-70 so admins can see it easily
+                    className="absolute top-4 right-4 z-10 p-2.5 bg-red-600/90 hover:bg-red-600 text-white rounded-full shadow-lg backdrop-blur-sm opacity-70 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+                    title="Delete Report"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+
                 <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
                   <img 
                     src={getSafeImage(heroImage?.url || heroImage)} 
@@ -229,18 +291,13 @@ export default function PublicReports() {
                     </span>
                   </div>
                 </div>
-
-                {/* Card Body */}
                 <div className="flex flex-col flex-1 p-6">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3 line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                     {articleTitle}
                   </h2>
-                  
                   <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-6 flex-1">
-                    {articleContent}
+                    {renderFormattedText(articleContent)}
                   </p>
-                  
-                  {/* Card Footer */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800 mt-auto">
                     <div className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 group-hover:gap-2 transition-all">
                       Read Report <ArrowRight className="h-4 w-4" />
@@ -271,15 +328,14 @@ export default function PublicReports() {
           <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden font-sans flex flex-col max-h-[90vh]">
             
             <div className="overflow-y-auto flex-1">
-                {/* Modal Hero */}
-                <div className="relative h-64 sm:h-80 w-full shrink-0">
+                <div className="relative h-64 sm:h-80 w-full shrink-0 group cursor-zoom-in" onClick={() => setFullscreenImage(getSafeImage(modalHero?.url || modalHero))}>
                   <img 
                     src={getSafeImage(modalHero?.url || modalHero)} 
-                    className="w-full h-full object-cover" 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                     alt="Event cover"
                   />
-                  <div className="absolute inset-0 bg-linear-to-t from-gray-900/90 via-gray-900/20 to-transparent"></div>
-                  <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
+                  <div className="absolute inset-0 bg-linear-to-t from-gray-900/90 via-gray-900/20 to-transparent pointer-events-none"></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 pointer-events-none">
                     <div className="flex flex-wrap items-center gap-3 mb-3">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/20 text-indigo-200 backdrop-blur-md px-3 py-1 text-xs font-semibold">
                         <Building className="h-3.5 w-3.5" /> {orgName}
@@ -294,24 +350,26 @@ export default function PublicReports() {
                   </div>
                 </div>
 
-                {/* Modal Content */}
                 <div className="p-6 sm:p-8">
                   <div className="prose prose-indigo dark:prose-invert max-w-none">
                     <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                      {modalContent}
+                      {renderFormattedText(modalContent)}
                     </p>
                   </div>
                   
-                  {/* Image Gallery */}
                   {modalSideImages.length > 0 && (
                     <div className="mt-12">
                       <h3 className="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">Event Gallery</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {modalSideImages.map((img, i) => (
-                          <div key={i} className="aspect-video sm:aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                          <div 
+                            key={i} 
+                            className="aspect-video sm:aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 cursor-zoom-in"
+                            onClick={() => setFullscreenImage(getSafeImage(img?.url || img))}
+                          >
                             <img 
                               src={getSafeImage(img?.url || img)} 
-                              className="w-full h-full object-cover hover:scale-110 transition-transform duration-500 cursor-pointer" 
+                              className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" 
                               alt={`Gallery item ${i + 1}`} 
                             />
                           </div>
@@ -320,7 +378,6 @@ export default function PublicReports() {
                     </div>
                   )}
 
-                  {/* Tags */}
                   {selected.hashtags && selected.hashtags.length > 0 && (
                     <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800">
                       <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900 dark:text-white">
@@ -338,8 +395,8 @@ export default function PublicReports() {
                 </div>
             </div>
 
-            {/* 🔥 NEW LOGIC: Admin Action Footer */}
-            {user?.role === 'super_admin' && (
+            {/* 🚀 FIXED: Swapped 'super_admin' check with 'canManageReport' */}
+            {canManageReport(selected) && (
                <div className="shrink-0 p-4 bg-red-50 dark:bg-red-900/10 border-t border-red-100 dark:border-red-900/30 flex justify-end">
                  <button 
                    onClick={() => handleDeleteReport(selected._id)}
@@ -354,6 +411,29 @@ export default function PublicReports() {
           )
         })()}
       </Modal>
+
+      {/* ================= FULLSCREEN IMAGE LIGHTBOX ================= */}
+      {fullscreenImage && (
+        <div 
+          // 🚀 FIXED: Changed z-9999 to z-[9999]
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 sm:p-8 cursor-zoom-out animate-in fade-in duration-200"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <button 
+            onClick={() => setFullscreenImage(null)}
+            className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors z-50"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          
+          <img 
+            src={fullscreenImage} 
+            alt="Fullscreen view" 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()} 
+          />
+        </div>
+      )}
     </div>
   );
 }

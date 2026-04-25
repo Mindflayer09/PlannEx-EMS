@@ -11,30 +11,31 @@ import {
   Check,
   Newspaper
 } from 'lucide-react';
-import { getMediaCatalog, generateSocialMediaContent, updateReport, getPublicReports } from '../../api/services/report.service'; // Added getPublicReports
+import { getMediaCatalog, generateSocialMediaContent, updateReport, getPublicReports } from '../../api/services/report.service'; 
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 
-// Limit the number of images sent to the AI to prevent 429 Payload/Quota errors
-const MAX_IMAGES = 1;
+const MAX_IMAGES = 3;
+
+// 🚀 Add the dictionary so the generator knows what NOT to highlight
+const IGNORE_WORDS = new Set([
+  'The', 'This', 'That', 'These', 'Those', 'With', 'From', 'Your', 'Have', 'Has', 'Had', 'Are', 'Were', 'Was', 'Been', 'Being', 'And', 'For', 'Not', 'But', 'She', 'Him', 'Her', 'His', 'Our', 'They', 'Them', 'Their', 'Its', 'All', 'Any', 'Both', 'Each', 'Few', 'More', 'Most', 'Some', 'Such', 'When', 'Where', 'Why', 'How', 'What', 'Which', 'Who', 'Whom', 'Whose', 'Then', 'Than', 'During', 'After', 'Before', 'While', 'Since', 'Until', 'Because', 'Although', 'Though', 'Even', 'If', 'Unless', 'As', 'So', 'Very', 'Too', 'Quite', 'Just', 'Already', 'Yet', 'Still', 'Always', 'Never', 'Often', 'Sometimes', 'Rarely', 'Usually', 'Mainly', 'Mostly', 'Only', 'Also', 'Furthermore', 'Moreover', 'However', 'Nevertheless', 'Nonetheless', 'Therefore', 'Thus', 'Hence', 'Consequently', 'Otherwise', 'Instead', 'Anyway', 'Besides', 'Meanwhile', 'Next', 'Finally', 'Eventually', 'Suddenly', 'Immediately', 'Ultimately', 'Initially', 'Actually', 'Basically', 'Literally', 'Simply', 'Main', 'A', 'An', 'In', 'On', 'At', 'To', 'Of', 'Is', 'It', 'By', 'Do', 'Go', 'He', 'Me', 'My', 'No', 'Or', 'Up', 'Us', 'We', 'Am'
+]);
 
 export default function AdvancedReportGenerator({ eventId, onReportGenerated }) {
-  const [step, setStep] = useState(1); // 1: Media Selection, 2: Prompt/Settings, 3: Preview
+  const [step, setStep] = useState(1); 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   
-  // Media Catalog
   const [mediaCatalog, setMediaCatalog] = useState([]);
   const [selectedMedia, setSelectedMedia] = useState([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
 
-  // Prompt & Settings
   const [platform, setPlatform] = useState('general');
   const [useCustomPrompt, setUseCustomPrompt] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   const [publishAfterGeneration, setPublishAfterGeneration] = useState(false);
 
-  // Generated Content
   const [generatedContent, setGeneratedContent] = useState(null);
   const [publishing, setPublishing] = useState(false);
 
@@ -46,7 +47,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
     { value: 'general', label: '📱 General', desc: 'Multi-platform' }
   ];
 
-  // Fetch media catalog on mount
   useEffect(() => {
     fetchMediaCatalog();
   }, [eventId]);
@@ -54,17 +54,13 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
   const fetchMediaCatalog = async () => {
     setLoadingCatalog(true);
     try {
-      // 1. Fetch all available media for the event
       const response = await getMediaCatalog(eventId);
       const rawCatalog = response.data?.data?.mediaCatalog || response.data?.mediaCatalog || [];
       const approvedTasks = response.data?.data?.approvedTasksCount || response.data?.approvedTasksCount || 0;
 
-      // 2. Fetch all EXISTING reports for this event to determine used photos
-      // We use the eventId filter we added to the backend route earlier
       const reportsRes = await getPublicReports({ eventId: eventId, limit: 100 }); 
       const existingReports = reportsRes?.data?.data?.reports || [];
       
-      // 3. Extract used image URLs
       const usedImages = [];
       existingReports.forEach(report => {
          if (report.reportImage) usedImages.push(report.reportImage);
@@ -73,7 +69,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
          }
       });
 
-      // 4. Filter the catalog: keep only media NOT present in usedImages
       const availableMedia = rawCatalog.filter(media => !usedImages.includes(media.url));
 
       setMediaCatalog(availableMedia);
@@ -82,7 +77,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         if (approvedTasks === 0) {
           toast.error('No approved tasks found. Complete and approve tasks first.');
         } else if (rawCatalog.length > 0) {
-          // If raw catalog had items but available is 0, it means everything was used
           toast.error('All approved photos have already been published in existing reports.');
         } else {
           toast.error('Approved tasks found but no photos submitted.');
@@ -102,7 +96,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
       if (prev.includes(url)) {
         return prev.filter(m => m !== url);
       }
-      // Enforce AI limit
       if (prev.length >= MAX_IMAGES) {
         toast.error(`You can only select up to ${MAX_IMAGES} photos to avoid overloading the AI.`);
         return prev;
@@ -120,6 +113,89 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         toast.success(`Selected the first ${MAX_IMAGES} photos due to AI limits.`);
       }
     }
+  };
+
+  // 🚀 THE PARSER: Safely unpacks the raw AI response for the preview window
+  const formatPreviewContent = (rawText) => {
+    let content = rawText;
+    
+    // 1. If it's wrapped in JSON (like your screenshot)
+    if (typeof content === 'string') {
+      const trimmed = content.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          let parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed) && parsed.length > 0) parsed = parsed[0];
+          content = parsed.content || content;
+        } catch(e) {}
+      }
+    }
+
+    // 2. Flatten Object if needed
+    if (typeof content === 'object' && content !== null) {
+        content = Object.values(content)
+            .filter(val => val) 
+            .map(val => typeof val === 'object' ? JSON.stringify(val) : String(val))
+            .join('\n\n'); 
+    }
+
+    // 3. Find embedded arrays and apply ***Bold Italics*** to names and titles
+    if (typeof content === 'string') {
+        const embeddedJsonRegex = /\[\s*\{[\s\S]*?\}\s*\]/g;
+        
+        content = content.replace(embeddedJsonRegex, (match) => {
+            try {
+                const parsedArray = JSON.parse(match);
+                if (Array.isArray(parsedArray)) {
+                    return parsedArray.map(item => {
+                        if (item.role && item.description) {
+                            let desc = item.description.replace(/\b([A-Z][a-z]+)\b/g, (word) => {
+                                // 🚀 Uses 3 asterisks to signal Bold+Italic to our renderer
+                                return IGNORE_WORDS.has(word) ? word : `***${word}***`;
+                            });
+                            return `• ***${item.role}***: ${desc}`;
+                        }
+                        return "• " + Object.values(item).filter(Boolean).join(' - ');
+                    }).join('\n\n');
+                }
+                return match;
+            } catch(e) { return match; }
+        });
+    }
+
+    if (typeof content === 'string') {
+        content = content.replace(/\\n/g, '\n');
+    }
+    
+    return String(content);
+  };
+
+  // 🚀 THE FORMATTER: Converts ***text*** to <strong className="italic">
+  const renderFormattedText = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Split by ***bold-italic*** OR **bold**
+    const parts = text.split(/(\*\*\*.*?\*\*\*|\*\*.*?\*\*)/g);
+    
+    return parts.map((part, index) => {
+      // Handle Bold + Italic
+      if (part.startsWith('***') && part.endsWith('***')) {
+        return (
+          <strong key={index} className="font-extrabold italic text-gray-900 dark:text-white">
+            {part.slice(3, -3)}
+          </strong>
+        );
+      }
+      // Handle Standard Bold
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={index} className="font-extrabold text-gray-900 dark:text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
   };
 
   const handleGenerate = async () => {
@@ -145,7 +221,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
       const parsedContent = payloadData.generatedContent || {};
       const report = payloadData.report || {};
 
-      // 1. Handle Backend Fallbacks
       if (response?.status === 202 || payloadData.success === false || response?.success === false) {
         toast.success(payloadData.message || response?.message || 'Draft saved. You can publish or edit manually.', { id: toastId });
         
@@ -162,7 +237,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         return;
       }
 
-      // 2. THE ULTIMATE SAFEGUARD
       const finalContentText = parsedContent.content || report.content || "Warning: The AI returned an empty text string. Try generating again or edit this text manually.";
       const finalTitleText = parsedContent.title || report.title || "PlannEx Exclusive Article";
 
@@ -170,7 +244,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         throw new Error('Backend failed to return any data objects.');
       }
 
-      // 3. Set the content and launch Step 3
       setGeneratedContent({ 
         ...parsedContent, 
         title: finalTitleText,
@@ -252,7 +325,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
 
   return (
     <div className="w-full">
-      {/* Header */}
       <div className="mb-6">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
           📰 Advanced Article Generator
@@ -262,7 +334,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         </p>
       </div>
 
-      {/* Step Indicator */}
       <div className="flex gap-2 mb-8">
         {[1, 2, 3].map((s) => (
           <div
@@ -274,7 +345,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         ))}
       </div>
 
-      {/* Step 1: Media Selection */}
       {step === 1 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
@@ -307,7 +377,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
                 </button>
               </div>
 
-              {/* 🚀 MOBILE FIX: Changed to 2 columns on phones, 3 on tablets */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 max-h-[50vh] sm:max-h-96 overflow-y-auto p-1">
                 {mediaCatalog.map((media, idx) => (
                   <div key={idx} onClick={() => toggleMediaSelection(media.url)} className={`relative cursor-pointer group ${!selectedMedia.includes(media.url) && selectedMedia.length >= MAX_IMAGES ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}>
@@ -331,7 +400,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         </div>
       )}
 
-      {/* Step 2: Prompt & Platform Selection */}
       {step === 2 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -339,10 +407,8 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Step 2: Editorial Settings</h3>
           </div>
           
-          {/* Platform Selection */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-900 dark:text-white mb-3">📱 Target Platform</label>
-            {/* 🚀 MOBILE FIX: Changed to 2 columns on phones, 5 on desktop */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
               {platforms.map(p => (
                 <button key={p.value} onClick={() => setPlatform(p.value)} className={`p-2 sm:p-3 rounded-lg text-xs sm:text-sm font-medium transition-all flex flex-col items-center sm:items-start text-center sm:text-left ${platform === p.value ? 'bg-indigo-600 text-white ring-2 ring-indigo-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
@@ -367,7 +433,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
             </div>
           )}
 
-          {/* 🚀 MOBILE FIX: Stack buttons on phones */}
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
             <button onClick={() => setStep(1)} className="w-full sm:w-1/3 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition">Back</button>
             <Button onClick={handleGenerate} loading={generating} className="w-full sm:w-2/3 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white py-2.5">
@@ -378,15 +443,11 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
         </div>
       )}
 
-      {/* Step 3: THE NEWSPAPER PREVIEW */}
       {step === 3 && generatedContent && (
-        // 🚀 MOBILE FIX: Reduced padding on phones
         <div className="bg-[#FAF9F6] dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700 p-4 sm:p-6 md:p-8 shadow-2xl">
           
-          {/* Newspaper Header */}
           <div className="border-b-4 border-double border-gray-900 dark:border-gray-400 pb-4 sm:pb-6 mb-6 text-center">
             <p className="text-[10px] sm:text-xs tracking-[0.2em] text-gray-500 uppercase mb-3 sm:mb-4">PlannEx Editorial</p>
-            {/* 🚀 MOBILE FIX: Responsive font sizes for the title */}
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-black text-gray-900 dark:text-white uppercase leading-tight mb-3 sm:mb-4">
               {generatedContent.title}
             </h1>
@@ -395,13 +456,11 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
             </p>
           </div>
 
-          {/* Hero Image (First Selected Media) */}
           {selectedMedia.length > 0 && (
             <div className="mb-6 sm:mb-8">
               <img 
                 src={selectedMedia[0]} 
                 alt="Event Cover" 
-                // 🚀 MOBILE FIX: Smaller hero image height on phones
                 className="w-full h-48 sm:h-72 md:h-96 object-cover rounded shadow-lg"
               />
               <p className="text-right text-[10px] sm:text-xs text-gray-500 italic mt-2 border-b border-gray-300 dark:border-gray-700 pb-3 sm:pb-4">
@@ -410,15 +469,13 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
             </div>
           )}
 
-          {/* Article Body (Two Column Layout on Desktop) */}
           <div className="columns-1 md:columns-2 gap-6 sm:gap-8 text-gray-800 dark:text-gray-200 font-serif leading-relaxed mb-8 sm:mb-10 text-justify text-sm sm:text-base">
-             {/* Creating a nice drop-cap effect for the first letter */}
             <p className="whitespace-pre-wrap first-letter:text-5xl sm:first-letter:text-6xl first-letter:font-black first-letter:float-left first-letter:mr-2 sm:first-letter:mr-3 first-letter:mt-1 sm:first-letter:mt-2">
-              {generatedContent.content}
+              {/* 🚀 Pass the raw content through the parser, then through the formatter! */}
+              {renderFormattedText(formatPreviewContent(generatedContent.content))}
             </p>
           </div>
 
-          {/* Additional Photos Gallery */}
           {selectedMedia.length > 1 && (
             <div className="mb-8 sm:mb-10">
               <h4 className="text-center font-serif font-bold uppercase tracking-widest text-gray-500 mb-3 sm:mb-4 text-xs sm:text-sm">Event Gallery</h4>
@@ -430,7 +487,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
             </div>
           )}
 
-          {/* Hashtags Footer (Safeguarded against non-array structures) */}
           {Array.isArray(generatedContent.hashtags) && generatedContent.hashtags.length > 0 && (
              <div className="border-t border-gray-300 dark:border-gray-700 pt-4 mb-6 sm:mb-8 text-center">
                 <p className="text-[10px] sm:text-xs font-serif text-gray-500 space-x-2 sm:space-x-3 flex flex-wrap justify-center gap-y-2">
@@ -441,8 +497,6 @@ export default function AdvancedReportGenerator({ eventId, onReportGenerated }) 
              </div>
           )}
 
-          {/* Action Controls */}
-          {/* 🚀 MOBILE FIX: Stacked buttons on small screens */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 pt-5 sm:pt-6 border-t-2 border-gray-900 dark:border-gray-500">
             <button
               onClick={() => {
